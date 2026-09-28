@@ -1,0 +1,7 @@
+[
+  { "slug": "ana", "nome": "Ana Souza", "cenario": "Plano em dia" },
+  { "slug": "bruno", "nome": "Bruno Lima", "cenario": "Plano vencido" },
+  { "slug": "carla", "nome": "Carla Mendes", "cenario": "Fora do horário do plano" },
+  { "slug": "diego", "nome": "Diego Rocha", "cenario": "Limite semanal atingido" },
+  { "slug": "elisa", "nome": "Elisa Prado", "cenario": "Aluna bloqueada" }
+]

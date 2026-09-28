@@ -51,6 +51,20 @@ Monorepo `facegym` com `docker-compose` que sobe tudo.
 - **Painel** (admin, login): alunos, planos, matrículas, bloqueio, cadastro/remoção de biometria com
   consentimento, histórico de acessos com motivo e meio.
 
+### 2.4 "Teste com você" — visitante temporário (adicionado em 2026-09-28)
+
+Substitui a ideia de "câmera sem gravar nada": o visitante quer ser reconhecido de verdade.
+
+- Totem → "Teste com você": caixa de consentimento obrigatória + selfie →
+  `POST /api/v1/demo/visitantes` cria um aluno `visitante` com nome "Visitante XXXX", CPF fictício
+  válido, consentimento registrado, matrícula no plano "Visitante" (todos os dias, 00:00–23:59, sem
+  limite) e cadastra o embedding. Retorna `{id, nome, cpf, expiraEm}`.
+- O visitante faz check-in normal pela câmera (segunda foto) e vê nome, resultado e regras.
+- Expira em **10 minutos**: um job a cada minuto remove biometria + aluno (matrículas e acessos em
+  cascata). `DELETE /api/v1/demo/visitantes/{id}` apaga na hora.
+- Anti-abuso: no máximo **20 visitantes criados por hora** (global) → 429.
+- LGPD: só o embedding é gravado (nunca a foto), com consentimento explícito e prazo.
+
 ## 3. Fluxo de check-in
 
 1. Totem envia foto → `POST /api/v1/check-ins` (multipart).
@@ -115,7 +129,12 @@ licença confirmada e citada no README antes do uso.
 
 ## 8. Deploy
 
-Vercel (front) e Render (API + biometria, cada um com Postgres). **Risco**: memória do modelo no plano
+Vercel (front) e Render (API + biometria como web services Docker). **Bancos no Neon** (um projeto,
+dois databases: `facegym` e `biometria` com pgvector): o Render free permite só um Postgres por conta e
+ele já é usado pelo physiomanage. A separação de bancos da seção 5 é mantida.
+
+Dados de demo: 5 alunos fictícios com rostos gerados por IA no Canva do usuário (cadastro = imagem
+gerada; check-in = variação com recorte/espelho/brilho, score ~0.94). **Risco**: memória do modelo no plano
 free (512 MB). **Primeira tarefa do plano**: medir memória e latência do `buffalo_s` num container;
 se não couber, trocar por modelo menor antes de seguir.
 

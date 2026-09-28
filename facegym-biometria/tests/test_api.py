@@ -64,3 +64,12 @@ def test_compare_demo_never_writes(client, auth, repo):
     r = client.post("/faces/compare-demo", files=upload(GREEN), headers=auth)
     assert r.json()["alunoId"] == str(aluno)
     assert repo.rows == before
+
+import logging
+
+def test_image_bytes_never_logged(client, auth, caplog):
+    marker = png(RED)
+    with caplog.at_level(logging.DEBUG):
+        client.put(f"/faces/{uuid4()}", files={"image": ("f.png", marker, "image/png")}, headers=auth)
+    assert marker[:32].hex() not in caplog.text
+    assert "embedding" not in caplog.text.lower()

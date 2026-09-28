@@ -7,3 +7,37 @@ spring:
     password: ${DB_PASSWORD:facegym}
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+server:
+  port: ${PORT:8080}
+
+facegym:
+  fuso: ${FACEGYM_FUSO:America/Sao_Paulo}
+  limiares:
+    aceite: ${LIMIAR_ACEITE:0.41}
+    duvida: ${LIMIAR_DUVIDA:0.18}
+  jwt-secret: ${JWT_SECRET:dev-secret-troque-em-producao-com-32-bytes-ou-mais}
+  admin:
+    email: ${ADMIN_EMAIL:admin@facegym.dev}
+    senha: ${ADMIN_PASSWORD:admin12345}
+  cors: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  biometria:
+    url: ${BIOMETRIA_URL:http://localhost:8000}
+    chave: ${BIOMETRIA_KEY:local-dev-key-0123456789}
+    timeout: 2s
+    janela: 10
+    taxa-falha: 50
+    espera: 30s
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      show-details: always

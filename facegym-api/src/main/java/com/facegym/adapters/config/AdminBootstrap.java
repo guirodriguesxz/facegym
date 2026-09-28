@@ -18,17 +18,22 @@ public class AdminBootstrap implements ApplicationRunner {
     private final String senha;
 
     public AdminBootstrap(JdbcClient jdbc, PasswordEncoder encoder,
-                          @Value("${facegym.admin.email}") String email, @Value("${facegym.admin.senha}") String senha) {
+                          @Value("${facegym.admin.email}") String email, @Value("${facegym.admin.senha:}") String senha) {
         this.jdbc = jdbc;
         this.encoder = encoder;
         this.email = email;
         this.senha = senha;
     }
 
+    /** Sem ADMIN_PASSWORD não cria ninguém: nada de senha padrão conhecida. */
+    static boolean deveCriar(long admins, String senha) {
+        return admins == 0 && senha != null && !senha.isBlank();
+    }
+
     @Override
     public void run(ApplicationArguments args) {
         long admins = jdbc.sql("SELECT count(*) FROM admin").query(Long.class).single();
-        if (admins == 0) {
+        if (deveCriar(admins, senha)) {
             jdbc.sql("INSERT INTO admin (id, email, senha_hash) VALUES (?, ?, ?)")
                     .param(UUID.randomUUID()).param(email.toLowerCase()).param(encoder.encode(senha)).update();
         }

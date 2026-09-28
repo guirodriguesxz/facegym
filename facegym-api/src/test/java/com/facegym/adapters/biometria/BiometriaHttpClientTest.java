@@ -110,4 +110,20 @@ class BiometriaHttpClientTest {
         client.compararDemo(FOTO);
         bio.verify(postRequestedFor(urlEqualTo("/faces/compare-demo")));
     }
+
+    @Test
+    void chaveErradaNaoViraFotoInvalidaEContaNoCircuito() {
+        bio.stubFor(post("/faces/identify").willReturn(status(401).withBody("{\"detail\":\"não autorizado\"}")));
+        for (int i = 0; i < 4; i++) {
+            assertThatThrownBy(() -> client.identificar(FOTO)).isInstanceOf(ReconhecimentoIndisponivel.class);
+        }
+        assertThat(client.circuitBreaker().getState()).isEqualTo(CircuitBreaker.State.OPEN);
+    }
+
+    @Test
+    void removerCom422NaoContaComoIndisponivel() {
+        UUID aluno = UUID.randomUUID();
+        bio.stubFor(delete("/faces/" + aluno).willReturn(status(422).withBody("{\"detail\":\"id inválido\"}")));
+        assertThatThrownBy(() -> client.remover(aluno)).isInstanceOf(RostoNaoEncontrado.class);
+    }
 }

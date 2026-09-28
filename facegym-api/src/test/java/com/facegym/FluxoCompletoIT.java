@@ -42,6 +42,7 @@ class FluxoCompletoIT {
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
         r.add("facegym.biometria.url", bio::baseUrl);
+        r.add("facegym.admin.senha", () -> "admin12345");
     }
 
     @TestConfiguration

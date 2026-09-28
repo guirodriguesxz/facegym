@@ -47,8 +47,14 @@ public class SecurityConfig {
                 .build();
     }
 
+    /** Sem JWT_SECRET, gera uma chave aleatória: nunca há segredo conhecido publicado no repositório. */
     @Bean
-    SecretKeySpec jwtKey(@Value("${facegym.jwt-secret}") String secret) {
+    SecretKeySpec jwtKey(@Value("${facegym.jwt-secret:}") String secret) {
+        if (secret == null || secret.isBlank()) {
+            byte[] aleatoria = new byte[32];
+            new java.security.SecureRandom().nextBytes(aleatoria);
+            return new SecretKeySpec(aleatoria, "HmacSHA256");
+        }
         byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
         if (bytes.length < 32) throw new IllegalStateException("JWT_SECRET precisa de pelo menos 32 bytes");
         return new SecretKeySpec(bytes, "HmacSHA256");

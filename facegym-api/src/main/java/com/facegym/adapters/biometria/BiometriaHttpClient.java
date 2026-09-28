@@ -69,9 +69,8 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     public void cadastrar(UUID alunoId, byte[] foto) {
         protegido(() -> {
             http.put().uri("/faces/{id}", alunoId).contentType(MediaType.MULTIPART_FORM_DATA)
-                    .body(multipart(foto)).retrieve().onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                        throw new RostoNaoEncontrado(detalhe(new String(res.getBody().readAllBytes())));
-                    }).toBodilessEntity();
+                    .body(multipart(foto)).retrieve().onStatus(BiometriaHttpClient::fotoInvalida, BiometriaHttpClient::lancarFotoInvalida)
+                    .toBodilessEntity();
             return null;
         });
     }
@@ -79,16 +78,17 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     @Override
     public void remover(UUID alunoId) {
         protegido(() -> {
-            http.delete().uri("/faces/{id}", alunoId).retrieve().toBodilessEntity();
+            http.delete().uri("/faces/{id}", alunoId).retrieve()
+                    .onStatus(BiometriaHttpClient::fotoInvalida, BiometriaHttpClient::lancarFotoInvalida)
+                    .toBodilessEntity();
             return null;
         });
     }
 
     private Identificacao post(String rota, byte[] foto) {
         IdentifyResponse r = http.post().uri(rota).contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(multipart(foto)).retrieve().onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-                    throw new RostoNaoEncontrado(detalhe(new String(res.getBody().readAllBytes())));
-                }).body(IdentifyResponse.class);
+                .body(multipart(foto)).retrieve().onStatus(BiometriaHttpClient::fotoInvalida, BiometriaHttpClient::lancarFotoInvalida)
+                .body(IdentifyResponse.class);
         return r == null ? Identificacao.ninguem() : new Identificacao(r.alunoId(), r.score());
     }
 
@@ -101,6 +101,19 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
         } catch (RuntimeException e) {
             throw new ReconhecimentoIndisponivel("Serviço de biometria indisponível", e);
         }
+    }
+
+    /**
+     * Só 413/422 são problema da requisição (foto ou id). Outros 4xx, como 401 por
+     * chave interna errada, são falha de integração e precisam abrir o circuito.
+     */
+    private static boolean fotoInvalida(HttpStatusCode status) {
+        return status.value() == 413 || status.value() == 422;
+    }
+
+    private static void lancarFotoInvalida(org.springframework.http.HttpRequest req,
+                                           org.springframework.http.client.ClientHttpResponse res) throws java.io.IOException {
+        throw new RostoNaoEncontrado(detalhe(new String(res.getBody().readAllBytes())));
     }
 
     private static LinkedMultiValueMap<String, Object> multipart(byte[] foto) {

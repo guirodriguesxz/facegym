@@ -27,6 +27,7 @@ services:
       DB_PORT: 5432
       BIOMETRIA_URL: http://biometria:8000
       BIOMETRIA_KEY: local-dev-key-0123456789
+      ADMIN_PASSWORD: admin12345  # só para rodar localmente
     depends_on: { api-db: { condition: service_healthy }, biometria: { condition: service_started } }
     ports: ["8081:8080"]
     mem_limit: 512m

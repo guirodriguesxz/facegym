@@ -61,4 +61,9 @@ public class ErrosHandler {
     ResponseEntity<Map<String, String>> status(ResponseStatusException e) {
         return erro(HttpStatus.valueOf(e.getStatusCode().value()), e.getReason());
     }
+
+    @ExceptionHandler(com.facegym.application.LimiteDeVisitantes.class)
+    ResponseEntity<Map<String, String>> limite(com.facegym.application.LimiteDeVisitantes e) {
+        return erro(HttpStatus.TOO_MANY_REQUESTS, e.getMessage());
+    }
 }

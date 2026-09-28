@@ -12,4 +12,6 @@ public interface Alunos {
     Optional<Aluno> porCpf(Cpf cpf);
     void salvar(Aluno aluno);
     List<Aluno> todos();
+    /** Apaga o aluno; matrículas, acessos e registro de visitante vão junto (cascata no banco). */
+    void remover(UUID id);
 }

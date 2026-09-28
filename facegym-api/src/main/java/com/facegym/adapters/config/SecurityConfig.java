@@ -40,7 +40,8 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.POST, "/api/v1/check-ins/**", "/api/v1/demo/identificar",
-                                "/api/v1/auth/login").permitAll()
+                                "/api/v1/demo/visitantes", "/api/v1/demo/aquecer", "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/demo/visitantes/*").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/prometheus", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o.jwt(j -> {}))

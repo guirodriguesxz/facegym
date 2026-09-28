@@ -13,6 +13,18 @@ public record Cpf(String valor) {
         return new Cpf(entrada.replaceAll("\\D", ""));
     }
 
+    /** CPF fictício válido (dígitos verificadores corretos), para visitantes da demo. */
+    public static Cpf aleatorio(java.util.random.RandomGenerator r) {
+        while (true) {
+            StringBuilder base = new StringBuilder();
+            for (int i = 0; i < 9; i++) base.append(r.nextInt(10));
+            String nove = base.toString();
+            String dez = nove + digito(nove + "00", 9);
+            String onze = dez + digito(dez + "0", 10);
+            if (onze.chars().distinct().count() > 1) return new Cpf(onze);
+        }
+    }
+
     private static boolean digitosOk(String c) {
         return digito(c, 9) == c.charAt(9) - '0' && digito(c, 10) == c.charAt(10) - '0';
     }

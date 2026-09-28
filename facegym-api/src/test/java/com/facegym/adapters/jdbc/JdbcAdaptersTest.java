@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import({AlunosJdbc.class, PlanosJdbc.class, MatriculasJdbc.class, AcessosJdbc.class})
+@Import({AlunosJdbc.class, PlanosJdbc.class, MatriculasJdbc.class, AcessosJdbc.class, VisitantesJdbc.class})
 class JdbcAdaptersTest {
 
     @Container
@@ -83,5 +83,28 @@ class JdbcAdaptersTest {
 
         assertThat(acessos.liberadosDesde(a.id(), t)).isEqualTo(1);
         assertThat(acessos.recentes(2)).extracting(Acesso::motivo).containsExactly("Rosto não reconhecido", "x");
+    }
+
+    @Autowired VisitantesJdbc visitantes;
+
+    @Test
+    void removerAlunoApagaMatriculasAcessosEVisitanteEmCascata() {
+        Aluno a = Aluno.novo("Visitante AB12", Cpf.of("16899535009"), null);
+        alunos.salvar(a);
+        matriculas.salvar(new Matricula(UUID.randomUUID(), a.id(), UUID.fromString("00000000-0000-4000-8000-000000000001"),
+                LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 6)));
+        acessos.registrar(new Acesso(UUID.randomUUID(), Instant.now(), a.id(), ResultadoAcesso.LIBERADO, null, MeioIdentificacao.FACIAL, 0.9));
+        Instant t = Instant.parse("2026-10-05T11:00:00Z");
+        visitantes.registrar(a.id(), t, t.plusSeconds(600));
+
+        assertThat(visitantes.existe(a.id())).isTrue();
+        assertThat(visitantes.expiradosAte(t.plusSeconds(599))).isEmpty();
+        assertThat(visitantes.expiradosAte(t.plusSeconds(600))).containsExactly(a.id());
+
+        alunos.remover(a.id());
+
+        assertThat(alunos.porId(a.id())).isEmpty();
+        assertThat(visitantes.existe(a.id())).isFalse();
+        assertThat(visitantes.criadosDesde(t.minusSeconds(1))).isEqualTo(1); // log sobrevive
     }
 }

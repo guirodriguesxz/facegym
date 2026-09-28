@@ -66,4 +66,9 @@ public class UseCaseConfig {
     GestaoDePlanos gestaoDePlanos(Planos p, Alunos a, Matriculas m) {
         return new GestaoDePlanos(p, a, m);
     }
+
+    @Bean
+    VisitantesTemporarios visitantesTemporarios(Alunos a, Matriculas m, Visitantes v, ReconhecimentoFacial r, Relogio rel) {
+        return new VisitantesTemporarios(a, m, v, r, rel);
+    }
 }

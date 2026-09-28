@@ -33,3 +33,12 @@ def test_applies_exif_rotation():
     exif[0x0112] = 6  # Orientation: girar 90° (foto de celular em pé)
     arr = decode_image(encode(img, exif=exif))
     assert arr.shape[:2] == (40, 20)  # agora altura > largura
+
+def test_decompression_bomb_is_invalid_image():
+    # 20000x20000 em tons de cinza comprime para ~400 KB mas teria 400 MP
+    with pytest.raises(InvalidImage):
+        decode_image(encode(Image.new("L", (20000, 20000)), "PNG"))
+
+def test_images_above_pixel_limit_are_rejected_before_full_decode():
+    with pytest.raises(InvalidImage):
+        decode_image(encode(Image.new("L", (8000, 6000)), "PNG"))  # 48 MP > 40 MP

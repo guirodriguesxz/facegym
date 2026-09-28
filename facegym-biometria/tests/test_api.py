@@ -73,3 +73,53 @@ def test_image_bytes_never_logged(client, auth, caplog):
         client.put(f"/faces/{uuid4()}", files={"image": ("f.png", marker, "image/png")}, headers=auth)
     assert marker[:32].hex() not in caplog.text
     assert "embedding" not in caplog.text.lower()
+
+import threading
+
+def test_unauthenticated_body_is_never_consumed(client):
+    consumed = []
+
+    def body():
+        for _ in range(64):
+            consumed.append(1)
+            yield b"\x00" * 65536
+
+    r = client.post("/faces/identify", content=body(),
+                    headers={"Content-Type": "multipart/form-data; boundary=x"})
+    assert r.status_code == 401
+    assert len(consumed) <= 1  # rejeitado antes de ler o corpo
+
+def test_oversized_content_length_is_413_before_parsing(client, auth):
+    r = client.post("/faces/identify", content=b"x" * 10, headers={**auth, "Content-Length": str(6 * 1024 * 1024), "Content-Type": "multipart/form-data; boundary=x"})
+    assert r.status_code == 413
+
+def test_health_answers_while_inference_is_running(repo):
+    import socket, time, httpx, uvicorn
+    from app.api import create_app
+    from tests.conftest import KEY
+    started, release = threading.Event(), threading.Event()
+
+    class SlowEmbedder:
+        def embed(self, image_bgr):
+            started.set()
+            release.wait(5)
+            return None
+
+    sock = socket.socket(); sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]; sock.close()
+    server = uvicorn.Server(uvicorn.Config(create_app(SlowEmbedder(), repo, KEY), port=port, log_level="error"))
+    threading.Thread(target=server.run, daemon=True).start()
+    base = f"http://127.0.0.1:{port}"
+    for _ in range(100):
+        try:
+            httpx.get(base + "/health"); break
+        except httpx.ConnectError:
+            time.sleep(0.05)
+    t = threading.Thread(target=lambda: httpx.post(base + "/faces/identify", headers={"X-Internal-Key": KEY},
+                                                     files={"image": ("f.png", png(RED), "image/png")}, timeout=10))
+    t.start()
+    try:
+        assert started.wait(5)
+        r = httpx.get(base + "/health", timeout=1)
+        assert r.status_code == 200
+    finally:
+        release.set(); t.join(5); server.should_exit = True

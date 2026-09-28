@@ -40,7 +40,9 @@ Monorepo `facegym` com `docker-compose` que sobe tudo.
     (similaridade de cosseno) ou `{alunoId: null}` se não há rosto/nenhum cadastro.
   - `DELETE /faces/{alunoId}` — apaga embedding (idempotente).
   - `POST /faces/compare-demo` — identifica sem nenhuma escrita (usado pela câmera do visitante).
-- Nunca persiste nem loga imagem ou embedding. Imagem sem rosto → 422; mais de um rosto → usa o maior.
+- Nunca persiste nem loga imagem ou embedding. Cadastro (`PUT`) de imagem sem rosto → 422; identify/compare-demo
+  sem rosto → `{alunoId: null}`; mais de um rosto → usa o maior.
+- Limiares 0.80/0.60 são valores iniciais: o plano 1 calibra os valores reais do modelo (`CALIBRATION.md`).
 
 ### 2.3 `facegym-web` — React + TypeScript
 

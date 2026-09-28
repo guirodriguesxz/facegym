@@ -5,8 +5,9 @@ hexagonal** e **integração resiliente** entre serviços.
 
 **Demo:** [facegym-web.vercel.app](https://facegym-web.vercel.app) — clique nos alunos fictícios ou use
 "Teste com você" para ser reconhecido pela câmera (seus dados somem em 10 minutos).
-Painel: `/painel` com `admin@facegym.dev` / *(senha de demonstração)*. Os serviços dormem no plano
-free: o primeiro acesso pode levar ~1 minuto.
+Painel: [/painel](https://facegym-web.vercel.app/painel) com `admin@facegym.dev` / `demo12345`.
+Os serviços dormem no plano free: o primeiro acesso pode levar ~1 minuto, e cada check-in leva alguns
+segundos porque a biometria roda com 10% de uma CPU (localmente leva menos de 1 s).
 
 ## Arquitetura
 

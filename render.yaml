@@ -1,0 +1,41 @@
+# render.yaml — API e biometria como web services Docker (plano free). Bancos no Neon.
+services:
+  - type: web
+    name: facegym-biometria
+    runtime: docker
+    rootDir: facegym-biometria
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: INTERNAL_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false  # connection string do database "biometria" no Neon
+
+  - type: web
+    name: facegym-api
+    runtime: docker
+    rootDir: facegym-api
+    plan: free
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_DATASOURCE_URL
+        sync: false  # jdbc:postgresql://<host>/facegym?sslmode=require
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      - key: BIOMETRIA_URL
+        value: https://facegym-biometria.onrender.com
+      - key: BIOMETRIA_KEY
+        fromService: { type: web, name: facegym-biometria, envVarKey: INTERNAL_KEY }
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@facegym.dev
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://facegym-web.vercel.app
+      - key: JAVA_TOOL_OPTIONS
+        value: -XX:MaxRAMPercentage=75 -XX:+UseSerialGC

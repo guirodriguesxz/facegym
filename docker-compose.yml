@@ -1,0 +1,32 @@
+services:
+  api-db:
+    image: postgres:16-alpine
+    environment: { POSTGRES_DB: facegym, POSTGRES_USER: facegym, POSTGRES_PASSWORD: facegym }
+    ports: ["5434:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U facegym"], interval: 5s, retries: 10 }
+
+  biometria-db:
+    image: pgvector/pgvector:pg16
+    environment: { POSTGRES_DB: biometria, POSTGRES_USER: biometria, POSTGRES_PASSWORD: biometria }
+    ports: ["5433:5432"]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U biometria"], interval: 5s, retries: 10 }
+
+  biometria:
+    build: ./facegym-biometria
+    environment:
+      INTERNAL_KEY: local-dev-key-0123456789
+      DATABASE_URL: postgresql://biometria:biometria@biometria-db:5432/biometria
+    depends_on: { biometria-db: { condition: service_healthy } }
+    ports: ["8000:8000"]
+    mem_limit: 512m
+
+  api:
+    build: ./facegym-api
+    environment:
+      DB_HOST: api-db
+      DB_PORT: 5432
+      BIOMETRIA_URL: http://biometria:8000
+      BIOMETRIA_KEY: local-dev-key-0123456789
+    depends_on: { api-db: { condition: service_healthy }, biometria: { condition: service_started } }
+    ports: ["8081:8080"]
+    mem_limit: 512m

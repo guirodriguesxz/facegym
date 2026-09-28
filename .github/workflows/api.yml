@@ -1,0 +1,20 @@
+name: api
+on:
+  push:
+    paths: ["facegym-api/**", ".github/workflows/api.yml"]
+  pull_request:
+    paths: ["facegym-api/**"]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: facegym-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - run: ./mvnw -B verify

@@ -1,0 +1,118 @@
+package com.facegym.adapters.biometria;
+
+import com.facegym.application.port.Identificacao;
+import com.facegym.application.port.ReconhecimentoFacial;
+import com.facegym.application.port.ReconhecimentoIndisponivel;
+import com.facegym.application.port.RostoNaoEncontrado;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
+import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClient;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.UUID;
+import java.util.function.Supplier;
+
+public class BiometriaHttpClient implements ReconhecimentoFacial {
+
+    private record IdentifyResponse(UUID alunoId, Double score) {}
+
+    private final RestClient http;
+    private final CircuitBreaker circuitBreaker;
+    private final Retry retry;
+
+    public BiometriaHttpClient(BiometriaProperties props, CircuitBreakerRegistry registry) {
+        var jdk = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1) // uvicorn não fala HTTP/2
+                .connectTimeout(props.timeout()).build();
+        var factory = new JdkClientHttpRequestFactory(jdk);
+        factory.setReadTimeout(props.timeout());
+        this.http = RestClient.builder().baseUrl(props.url()).requestFactory(factory)
+                .defaultHeader("X-Internal-Key", props.chave()).build();
+
+        this.circuitBreaker = registry.circuitBreaker("biometria", CircuitBreakerConfig.custom()
+                .slidingWindowSize(props.janela())
+                .minimumNumberOfCalls(props.janela())
+                .failureRateThreshold(props.taxaFalha())
+                .waitDurationInOpenState(props.espera())
+                // 4xx é problema da foto, não do serviço: não conta como falha
+                .ignoreExceptions(RostoNaoEncontrado.class)
+                .build());
+        this.retry = Retry.of("biometria", RetryConfig.custom()
+                .maxAttempts(2)
+                .waitDuration(Duration.ofMillis(100))
+                .retryExceptions(ResourceAccessException.class) // timeout e conexão
+                .build());
+    }
+
+    public CircuitBreaker circuitBreaker() { return circuitBreaker; }
+
+    @Override
+    public Identificacao identificar(byte[] foto) {
+        return protegido(() -> post("/faces/identify", foto));
+    }
+
+    @Override
+    public Identificacao compararDemo(byte[] foto) {
+        return protegido(() -> post("/faces/compare-demo", foto));
+    }
+
+    @Override
+    public void cadastrar(UUID alunoId, byte[] foto) {
+        protegido(() -> {
+            http.put().uri("/faces/{id}", alunoId).contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(multipart(foto)).retrieve().onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                        throw new RostoNaoEncontrado(detalhe(new String(res.getBody().readAllBytes())));
+                    }).toBodilessEntity();
+            return null;
+        });
+    }
+
+    @Override
+    public void remover(UUID alunoId) {
+        protegido(() -> {
+            http.delete().uri("/faces/{id}", alunoId).retrieve().toBodilessEntity();
+            return null;
+        });
+    }
+
+    private Identificacao post(String rota, byte[] foto) {
+        IdentifyResponse r = http.post().uri(rota).contentType(MediaType.MULTIPART_FORM_DATA)
+                .body(multipart(foto)).retrieve().onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+                    throw new RostoNaoEncontrado(detalhe(new String(res.getBody().readAllBytes())));
+                }).body(IdentifyResponse.class);
+        return r == null ? Identificacao.ninguem() : new Identificacao(r.alunoId(), r.score());
+    }
+
+    private <T> T protegido(Supplier<T> chamada) {
+        Supplier<T> decorada = CircuitBreaker.decorateSupplier(circuitBreaker, Retry.decorateSupplier(retry, chamada));
+        try {
+            return decorada.get();
+        } catch (RostoNaoEncontrado e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new ReconhecimentoIndisponivel("Serviço de biometria indisponível", e);
+        }
+    }
+
+    private static LinkedMultiValueMap<String, Object> multipart(byte[] foto) {
+        var parts = new LinkedMultiValueMap<String, Object>();
+        parts.add("image", new ByteArrayResource(foto) {
+            @Override public String getFilename() { return "foto.jpg"; }
+        });
+        return parts;
+    }
+
+    private static String detalhe(String corpo) {
+        var m = java.util.regex.Pattern.compile("\"detail\"\\s*:\\s*\"([^\"]*)\"").matcher(corpo);
+        return m.find() ? m.group(1) : "imagem inválida";
+    }
+}

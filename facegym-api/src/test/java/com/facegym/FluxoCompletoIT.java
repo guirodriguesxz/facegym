@@ -99,8 +99,9 @@ class FluxoCompletoIT {
                 .andExpect(jsonPath("$.nome").value("Ana"));
 
         mvc.perform(get("/api/v1/acessos").header("Authorization", auth))
-                .andExpect(jsonPath("$[0].resultado").value("LIBERADO"))
-                .andExpect(jsonPath("$[0].meio").value("FACIAL"));
+                // outros testes gravam acessos no mesmo instante (relógio fixo): filtra pelo aluno
+                .andExpect(jsonPath("$[?(@.alunoId == '" + aluno + "')].resultado").value(org.hamcrest.Matchers.hasItem("LIBERADO")))
+                .andExpect(jsonPath("$[?(@.alunoId == '" + aluno + "')].meio").value(org.hamcrest.Matchers.hasItem("FACIAL")));
     }
 
     @Test
@@ -128,5 +129,29 @@ class FluxoCompletoIT {
     void loginErrado() throws Exception {
         mvc.perform(post("/api/v1/auth/login").contentType("application/json").content("{\"email\":\"admin@facegym.dev\",\"senha\":\"errada\"}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void visitanteSeCadastraFazCheckInEApagaOsDados() throws Exception {
+        var selfie = new MockMultipartFile("foto", "s.jpg", "image/jpeg", new byte[]{5});
+        bio.stubFor(WireMock.put(WireMock.urlMatching("/faces/.*")).willReturn(WireMock.noContent()));
+        String body = mvc.perform(multipart("/api/v1/demo/visitantes").file(selfie).param("consentimento", "true"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String id = id(body);
+
+        bio.stubFor(WireMock.post("/faces/identify").willReturn(WireMock.okJson("{\"alunoId\":\"" + id + "\",\"score\":0.9}")));
+        mvc.perform(multipart("/api/v1/check-ins").file(selfie))
+                .andExpect(jsonPath("$.status").value("LIBERADO"))
+                .andExpect(jsonPath("$.nome").value(org.hamcrest.Matchers.startsWith("Visitante ")));
+
+        bio.stubFor(WireMock.delete(WireMock.urlMatching("/faces/.*")).willReturn(WireMock.noContent()));
+        mvc.perform(delete("/api/v1/demo/visitantes/" + id)).andExpect(status().isNoContent());
+        mvc.perform(multipart("/api/v1/check-ins").file(selfie)).andExpect(jsonPath("$.status").value("NAO_RECONHECIDO"));
+    }
+
+    @Test
+    void visitanteSemConsentimentoE409() throws Exception {
+        mvc.perform(multipart("/api/v1/demo/visitantes").file(new MockMultipartFile("foto", "s.jpg", "image/jpeg", new byte[]{5})))
+                .andExpect(status().isConflict());
     }
 }

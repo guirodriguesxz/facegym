@@ -56,6 +56,6 @@ public class AlunosJdbc implements Alunos {
 
     @Override
     public void remover(UUID id) {
-        throw new UnsupportedOperationException("implementado na Task 2");
+        jdbc.sql("DELETE FROM aluno WHERE id = ?").param(id).update();
     }
 }

@@ -26,11 +26,13 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
 
     private record IdentifyResponse(UUID alunoId, Double score) {}
 
+    private final String baseUrl;
     private final RestClient http;
     private final CircuitBreaker circuitBreaker;
     private final Retry retry;
 
     public BiometriaHttpClient(BiometriaProperties props, CircuitBreakerRegistry registry) {
+        this.baseUrl = props.url();
         var jdk = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1) // uvicorn não fala HTTP/2
                 .connectTimeout(props.timeout()).build();
         var factory = new JdkClientHttpRequestFactory(jdk);
@@ -54,6 +56,19 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     }
 
     public CircuitBreaker circuitBreaker() { return circuitBreaker; }
+
+    /** Acorda a biometria (Render free hiberna). Timeout longo, fora do circuito, sem bloquear quem chamou. */
+    public void aquecer() {
+        Thread.startVirtualThread(() -> {
+            try {
+                var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(baseUrl + "/health"))
+                        .timeout(Duration.ofSeconds(90)).GET().build();
+                HttpClient.newHttpClient().send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+            } catch (Exception ignored) {
+                // melhor esforço
+            }
+        });
+    }
 
     @Override
     public Identificacao identificar(byte[] foto) {

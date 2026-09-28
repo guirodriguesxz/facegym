@@ -24,4 +24,13 @@ class CpfTest {
         assertThatThrownBy(() -> Cpf.of("1234")).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> Cpf.of(null)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void aleatorioGeraCpfValido() {
+        var r = new java.util.Random(42);
+        for (int i = 0; i < 200; i++) {
+            Cpf c = Cpf.aleatorio(r);
+            assertThat(Cpf.of(c.valor())).isEqualTo(c);
+        }
+    }
 }

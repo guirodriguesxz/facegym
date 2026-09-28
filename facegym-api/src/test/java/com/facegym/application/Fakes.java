@@ -36,6 +36,8 @@ public class Fakes {
         public Optional<Aluno> porCpf(Cpf cpf) { return dados.values().stream().filter(a -> a.cpf().equals(cpf)).findFirst(); }
         public void salvar(Aluno a) { dados.put(a.id(), a); }
         public List<Aluno> todos() { return List.copyOf(dados.values()); }
+        public java.util.function.Consumer<UUID> aoRemover = id -> {};
+        public void remover(UUID id) { dados.remove(id); aoRemover.accept(id); }
     }
 
     public static class PlanosFake implements Planos {
@@ -74,6 +76,21 @@ public class Fakes {
         public ZoneId fuso() { return ZoneId.of("America/Sao_Paulo"); }
     }
 
+    public static class VisitantesFake implements Visitantes {
+        public record Registro(Instant criadoEm, Instant expiraEm) {}
+        public final Map<UUID, Registro> dados = new LinkedHashMap<>();
+        public final List<Instant> criacoes = new ArrayList<>(); // histórico para o limite por hora
+        public void registrar(UUID id, Instant criadoEm, Instant expiraEm) {
+            dados.put(id, new Registro(criadoEm, expiraEm));
+            criacoes.add(criadoEm);
+        }
+        public boolean existe(UUID id) { return dados.containsKey(id); }
+        public List<UUID> expiradosAte(Instant agora) {
+            return dados.entrySet().stream().filter(e -> !e.getValue().expiraEm().isAfter(agora)).map(Map.Entry::getKey).toList();
+        }
+        public long criadosDesde(Instant desde) { return criacoes.stream().filter(c -> !c.isBefore(desde)).count(); }
+    }
+
     public final ReconhecimentoFake reconhecimento = new ReconhecimentoFake();
     public final AlunosFake alunos = new AlunosFake();
     public final PlanosFake planos = new PlanosFake();
@@ -81,6 +98,12 @@ public class Fakes {
     public final AcessosFake acessos = new AcessosFake();
     public final CheckInsPendentesEmMemoria pendentes = new CheckInsPendentesEmMemoria();
     public final RelogioFake relogio = new RelogioFake(LocalDate.of(2026, 10, 5).atTime(8, 0)); // segunda 08:00
+
+    public final VisitantesFake visitantes = new VisitantesFake();
+
+    {
+        alunos.aoRemover = visitantes.dados::remove; // cascata do banco
+    }
 
     public RealizarCheckIn checkIn() {
         return new RealizarCheckIn(reconhecimento, alunos, planos, matriculas, acessos, pendentes, relogio,

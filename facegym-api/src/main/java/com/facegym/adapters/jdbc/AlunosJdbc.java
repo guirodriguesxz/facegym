@@ -53,4 +53,9 @@ public class AlunosJdbc implements Alunos {
     public List<Aluno> todos() {
         return jdbc.sql("SELECT * FROM aluno ORDER BY nome").query(MAPPER).list();
     }
+
+    @Override
+    public void remover(UUID id) {
+        throw new UnsupportedOperationException("implementado na Task 2");
+    }
 }

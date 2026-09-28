@@ -1,0 +1,30 @@
+[project]
+name = "facegym-biometria"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.0",
+  "uvicorn[standard]==0.30.6",
+  "python-multipart==0.0.10",
+  "numpy==1.26.4",
+  "pillow==10.4.0",
+  "insightface==0.7.3",
+  "onnxruntime==1.19.2",
+  "opencv-python-headless==4.10.0.84",
+  "psycopg[binary]==3.2.3",
+  "pgvector==0.3.5",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.3.3", "httpx==0.27.2", "testcontainers[postgres]==4.8.1", "scikit-learn==1.5.2"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+markers = ["slow: usa o modelo real e baixa o dataset LFW"]
+addopts = "-m 'not slow'"

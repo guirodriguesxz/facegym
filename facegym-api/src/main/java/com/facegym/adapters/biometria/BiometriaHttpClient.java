@@ -9,6 +9,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -23,6 +25,8 @@ import java.util.UUID;
 import java.util.function.Supplier;
 
 public class BiometriaHttpClient implements ReconhecimentoFacial {
+
+    private static final Logger log = LoggerFactory.getLogger(BiometriaHttpClient.class);
 
     private record IdentifyResponse(UUID alunoId, Double score) {}
 
@@ -114,6 +118,7 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
         } catch (RostoNaoEncontrado e) {
             throw e;
         } catch (RuntimeException e) {
+            log.warn("Biometria indisponível em {}: {}", baseUrl, e.toString());
             throw new ReconhecimentoIndisponivel("Serviço de biometria indisponível", e);
         }
     }

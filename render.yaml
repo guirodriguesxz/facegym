@@ -27,6 +27,8 @@ services:
         sync: false
       - key: BIOMETRIA_URL
         value: https://facegym-biometria.onrender.com
+      - key: BIOMETRIA_TIMEOUT
+        value: 8s  # inferência na CPU do plano free leva ~2 s
       - key: BIOMETRIA_KEY
         fromService: { type: web, name: facegym-biometria, envVarKey: INTERNAL_KEY }
       - key: JWT_SECRET

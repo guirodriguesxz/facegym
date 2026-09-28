@@ -12,7 +12,8 @@ class InsightFaceEmbedder:
     600 MB na subida e não cabe nos 512 MB do plano free do Render.
     """
 
-    def __init__(self, model: str = "buffalo_s", det_size: tuple[int, int] = (640, 640)):
+    # 320 basta para o rosto de um totem/selfie e custa metade de 640 na CPU fracionada do plano free
+    def __init__(self, model: str = "buffalo_s", det_size: tuple[int, int] = (320, 320)):
         # import tardio: testes rápidos não carregam o modelo
         import onnxruntime as ort
         from insightface.model_zoo.arcface_onnx import ArcFaceONNX

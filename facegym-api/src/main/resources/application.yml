@@ -28,7 +28,7 @@ facegym:
   biometria:
     url: ${BIOMETRIA_URL:http://localhost:8000}
     chave: ${BIOMETRIA_KEY:local-dev-key-0123456789}
-    timeout: 2s
+    timeout: ${BIOMETRIA_TIMEOUT:2s}  # produção (CPU fracionada) usa mais
     janela: 10
     taxa-falha: 50
     espera: 30s

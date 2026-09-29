@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 
-export function Camera({ onFoto, rotulo, desabilitado }: { onFoto: (foto: Blob) => void; rotulo: string; desabilitado?: boolean }) {
+/**
+ * Vídeo da câmera frontal com um botão que captura um JPEG.
+ * `terminal` ocupa a tela inteira da catraca, com o botão por cima do vídeo.
+ */
+export function Camera({ onFoto, rotulo, desabilitado, terminal }: {
+  onFoto: (foto: Blob) => void
+  rotulo: string
+  desabilitado?: boolean
+  terminal?: boolean
+}) {
   const video = useRef<HTMLVideoElement>(null)
   const [erro, setErro] = useState<string | null>(null)
 
@@ -8,8 +17,8 @@ export function Camera({ onFoto, rotulo, desabilitado }: { onFoto: (foto: Blob) 
     let stream: MediaStream | null = null
     navigator.mediaDevices?.getUserMedia({ video: { facingMode: 'user', width: 640, height: 640 } })
       .then((s) => { stream = s; if (video.current) video.current.srcObject = s })
-      .catch(() => setErro('Não consegui acessar a câmera. Verifique a permissão do navegador ou use a galeria acima.'))
-    if (!navigator.mediaDevices) setErro('Este navegador não oferece câmera. Use a galeria acima.')
+      .catch(() => setErro('Não consegui acessar a câmera. Libere a permissão no navegador ou use os alunos de demonstração.'))
+    if (!navigator.mediaDevices) setErro('Este navegador não oferece câmera. Use os alunos de demonstração.')
     return () => stream?.getTracks().forEach((t) => t.stop())
   }, [])
 
@@ -22,12 +31,29 @@ export function Camera({ onFoto, rotulo, desabilitado }: { onFoto: (foto: Blob) 
     canvas.toBlob((b) => b && onFoto(b), 'image/jpeg', 0.9)
   }
 
-  if (erro) return <p className="rounded-lg bg-amber-500/10 p-3 text-amber-200">{erro}</p>
+  if (erro) {
+    return terminal
+      ? <p className="flex h-full items-center p-6 text-center font-visor text-lg text-sinal-aviso">{erro}</p>
+      : <p className="rounded-lg bg-amber-100 p-3 text-sm text-amber-900">{erro}</p>
+  }
+
+  if (terminal) {
+    return (
+      <div className="relative h-full w-full">
+        <video ref={video} autoPlay playsInline muted className="h-full w-full object-cover [transform:scaleX(-1)]" />
+        <button onClick={capturar} disabled={desabilitado}
+          className="absolute inset-x-6 bottom-5 rounded-full bg-sinal-ok py-2.5 font-visor text-lg font-semibold text-tela focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40">
+          {rotulo}
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex flex-col items-center gap-3">
-      <video ref={video} autoPlay playsInline muted className="aspect-square w-64 rounded-2xl bg-black object-cover [transform:scaleX(-1)]" />
+    <div className="flex flex-col items-start gap-3">
+      <video ref={video} autoPlay playsInline muted className="aspect-square w-56 rounded-xl bg-grafite object-cover [transform:scaleX(-1)]" />
       <button onClick={capturar} disabled={desabilitado}
-        className="rounded-lg bg-emerald-500 px-4 py-2 font-medium text-slate-950 disabled:opacity-50">{rotulo}</button>
+        className="rounded-lg bg-grafite px-4 py-2 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grafite disabled:opacity-50">{rotulo}</button>
     </div>
   )
 }

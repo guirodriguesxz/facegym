@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { descrever } from './resultado'
+import { descrever, formatarCpf } from './resultado'
 
 describe('descrever', () => {
   it('liberado mostra boas-vindas', () => {
@@ -14,5 +14,14 @@ describe('descrever', () => {
       expect(descrever({ status }).pedeCpf).toBe(true)
     }
     expect(descrever({ status: 'BIOMETRIA_INDISPONIVEL' }).titulo).toBe('Reconhecimento indisponível')
+  })
+})
+
+describe('formatarCpf', () => {
+  it('formata enquanto digita e ignora o que passa de 11 dígitos', () => {
+    expect(formatarCpf('')).toBe('')
+    expect(formatarCpf('529')).toBe('529')
+    expect(formatarCpf('5299822')).toBe('529.982.2')
+    expect(formatarCpf('529982247251')).toBe('529.982.247-25')
   })
 })

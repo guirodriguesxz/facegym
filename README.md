@@ -20,7 +20,7 @@ facegym-web (React)  ──►  facegym-api (Spring, hexagonal)  ──►  face
 
 - **Regras de acesso** em Java puro (`domain`): bloqueio, plano ativo, horário do plano, limite semanal.
   ArchUnit quebra o build se o domínio importar Spring, JDBC ou HTTP.
-- **Resiliência**: timeout de 2 s, 1 retry só em erro de rede, circuit breaker (Resilience4j). Se a
+- **Resiliência**: timeout configurável (2 s local, 8 s em produção por causa da CPU do plano free), 1 retry só em erro de rede, circuit breaker (Resilience4j). Se a
   biometria cair, o totem pede o CPF, que passa pelas mesmas regras.
 - **Limiares calibrados** no LFW (`facegym-biometria/CALIBRATION.md`): aceite 0.41, dúvida 0.18.
 

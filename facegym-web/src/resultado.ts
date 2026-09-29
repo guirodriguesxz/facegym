@@ -21,3 +21,9 @@ export function descrever(r: RespostaCheckIn): Descricao {
       return { titulo: 'Reconhecimento indisponível', detalhe: 'Entre com seu CPF.', tom: 'aviso', pedeCpf: true }
   }
 }
+
+/** Máscara do visor da catraca: 000.000.000-00, no máximo 11 dígitos. */
+export function formatarCpf(digitos: string): string {
+  const d = digitos.replace(/\D/g, '').slice(0, 11)
+  return d.replace(/^(\d{3})(\d)/, '$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d{1,2})$/, '.$1-$2')
+}

@@ -26,6 +26,7 @@ public class VisitantesTemporarios {
     private final ReconhecimentoFacial reconhecimento;
     private final Relogio relogio;
     private final SecureRandom random = new SecureRandom();
+    private int emAndamento; // cadastros que já passaram pelo limite e ainda não terminaram
 
     public VisitantesTemporarios(Alunos alunos, Matriculas matriculas, Visitantes visitantes,
                                  ReconhecimentoFacial reconhecimento, Relogio relogio) {
@@ -39,8 +40,18 @@ public class VisitantesTemporarios {
     public Visitante criar(byte[] foto, boolean consentimento) {
         if (!consentimento) throw new ConsentimentoAusente();
         Instant agora = relogio.agora();
-        if (visitantes.criadosDesde(agora.minus(Duration.ofHours(1))) >= MAX_POR_HORA) throw new LimiteDeVisitantes();
+        synchronized (this) {
+            if (visitantes.criadosDesde(agora.minus(Duration.ofHours(1))) + emAndamento >= MAX_POR_HORA) throw new LimiteDeVisitantes();
+            emAndamento++;
+        }
+        try {
+            return cadastrar(foto, agora);
+        } finally {
+            synchronized (this) { emAndamento--; }
+        }
+    }
 
+    private Visitante cadastrar(byte[] foto, Instant agora) {
         Cpf cpf;
         do { cpf = Cpf.aleatorio(random); } while (alunos.porCpf(cpf).isPresent());
         byte[] sufixo = new byte[2];
@@ -86,8 +97,8 @@ public class VisitantesTemporarios {
                 reconhecimento.remover(id);
                 alunos.remover(id);
                 removidos++;
-            } catch (ReconhecimentoIndisponivel e) {
-                // mantém aluno e biometria juntos; próxima rodada tenta de novo
+            } catch (RuntimeException e) {
+                // biometria ou banco fora: mantém o registro e a próxima rodada tenta de novo
             }
         }
         return removidos;

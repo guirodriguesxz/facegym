@@ -95,6 +95,46 @@ class VisitantesTemporariosTest {
     }
 
     @Test
+    void cadastroEmAndamentoContaNoLimite() throws Exception {
+        for (int i = 0; i < VisitantesTemporarios.MAX_POR_HORA - 1; i++) visitantes.criar(selfie, true);
+        var entrou = new java.util.concurrent.CountDownLatch(1);
+        var libera = new java.util.concurrent.CountDownLatch(1);
+        var lento = new Fakes.ReconhecimentoFake() {
+            @Override public void cadastrar(java.util.UUID id, byte[] foto) {
+                entrou.countDown();
+                try { libera.await(2, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException e) { throw new RuntimeException(e); }
+                super.cadastrar(id, foto);
+            }
+        };
+        var v = new VisitantesTemporarios(f.alunos, f.matriculas, f.visitantes, lento, f.relogio);
+        var vigesimo = java.util.concurrent.CompletableFuture.runAsync(() -> v.criar(selfie, true));
+        entrou.await();
+        try {
+            assertThatThrownBy(() -> v.criar(selfie, true)).isInstanceOf(LimiteDeVisitantes.class);
+        } finally {
+            libera.countDown();
+        }
+        vigesimo.get();
+        assertThat(f.visitantes.criacoes).hasSize(VisitantesTemporarios.MAX_POR_HORA);
+    }
+
+    @Test
+    void erroDeBancoEmUmVisitanteNaoImpedeExpirarOsOutros() {
+        var a = visitantes.criar(selfie, true);
+        var b = visitantes.criar(selfie, true);
+        var falhaNoA = new Fakes.AlunosFake() {
+            @Override public void remover(java.util.UUID id) {
+                if (id.equals(a.id())) throw new IllegalStateException("conexão perdida");
+                f.alunos.remover(id);
+            }
+        };
+        var v = new VisitantesTemporarios(falhaNoA, f.matriculas, f.visitantes, f.reconhecimento, f.relogio);
+        f.relogio.agora = f.relogio.agora.plus(VisitantesTemporarios.VALIDADE);
+        assertThat(v.expirar()).isEqualTo(1);
+        assertThat(f.alunos.porId(b.id())).isEmpty();
+    }
+
+    @Test
     void expiraDepoisDe10MinutosEDepoisNaoEReconhecido() {
         var v = visitantes.criar(selfie, true);
         f.relogio.agora = f.relogio.agora.plus(VisitantesTemporarios.VALIDADE).minusSeconds(1);

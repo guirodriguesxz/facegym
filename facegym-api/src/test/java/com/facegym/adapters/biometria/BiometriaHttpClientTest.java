@@ -126,4 +126,12 @@ class BiometriaHttpClientTest {
         bio.stubFor(delete("/faces/" + aluno).willReturn(status(422).withBody("{\"detail\":\"id inválido\"}")));
         assertThatThrownBy(() -> client.remover(aluno)).isInstanceOf(RostoNaoEncontrado.class);
     }
+
+    @Test
+    void aquecerRepetidoFazUmaSoRequisicao() throws InterruptedException {
+        bio.stubFor(get("/health").willReturn(okJson("{\"status\":\"UP\"}").withFixedDelay(200)));
+        for (int i = 0; i < 20; i++) client.aquecer();
+        Thread.sleep(600);
+        bio.verify(1, getRequestedFor(urlEqualTo("/health")));
+    }
 }

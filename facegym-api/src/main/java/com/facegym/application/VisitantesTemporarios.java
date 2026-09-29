@@ -51,8 +51,17 @@ public class VisitantesTemporarios {
 
         try {
             reconhecimento.cadastrar(aluno.id(), foto);
-        } catch (RuntimeException e) {
+        } catch (RostoNaoEncontrado e) {
             alunos.remover(aluno.id()); // sem biometria não existe visitante
+            throw e;
+        } catch (RuntimeException e) {
+            // timeout pode chegar depois de a biometria gravar: apaga o vetor também
+            try {
+                reconhecimento.remover(aluno.id());
+                alunos.remover(aluno.id());
+            } catch (RuntimeException remocao) {
+                visitantes.registrar(aluno.id(), agora, agora); // já expirado: o job limpa os dois lados
+            }
             throw e;
         }
 

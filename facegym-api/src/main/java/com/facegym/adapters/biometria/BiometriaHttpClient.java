@@ -30,7 +30,11 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
 
     private record IdentifyResponse(UUID alunoId, Double score) {}
 
+    private static final Duration INTERVALO_AQUECIMENTO = Duration.ofSeconds(60);
+
     private final String baseUrl;
+    private final HttpClient aquecedor = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    private final java.util.concurrent.atomic.AtomicLong ultimoAquecimento = new java.util.concurrent.atomic.AtomicLong(Long.MIN_VALUE);
     private final RestClient http;
     private final CircuitBreaker circuitBreaker;
     private final Retry retry;
@@ -61,13 +65,20 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
 
     public CircuitBreaker circuitBreaker() { return circuitBreaker; }
 
-    /** Acorda a biometria (Render free hiberna). Timeout longo, fora do circuito, sem bloquear quem chamou. */
+    /**
+     * Acorda a biometria (Render free hiberna). Timeout longo, fora do circuito, sem bloquear quem chamou.
+     * O endpoint é público: no máximo um aquecimento por minuto, com um cliente só.
+     */
     public void aquecer() {
+        long agora = System.nanoTime();
+        long ultimo = ultimoAquecimento.get();
+        if (ultimo != Long.MIN_VALUE && agora - ultimo < INTERVALO_AQUECIMENTO.toNanos()) return;
+        if (!ultimoAquecimento.compareAndSet(ultimo, agora)) return;
         Thread.startVirtualThread(() -> {
             try {
                 var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(baseUrl + "/health"))
                         .timeout(Duration.ofSeconds(90)).GET().build();
-                HttpClient.newHttpClient().send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+                aquecedor.send(req, java.net.http.HttpResponse.BodyHandlers.discarding());
             } catch (Exception ignored) {
                 // melhor esforço
             }

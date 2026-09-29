@@ -62,6 +62,30 @@ class VisitantesTemporariosTest {
     }
 
     @Test
+    void timeoutDepoisDeGravarNaBiometriaNaoDeixaVetorOrfao() {
+        var gravaETimeout = new Fakes.ReconhecimentoFake() {
+            @Override public void cadastrar(java.util.UUID id, byte[] foto) {
+                cadastrados.put(id, foto); // a biometria gravou, mas a resposta não chegou a tempo
+                throw new ReconhecimentoIndisponivel("timeout", null);
+            }
+        };
+        var v = new VisitantesTemporarios(f.alunos, f.matriculas, f.visitantes, gravaETimeout, f.relogio);
+        assertThatThrownBy(() -> v.criar(selfie, true)).isInstanceOf(ReconhecimentoIndisponivel.class);
+        assertThat(gravaETimeout.cadastrados).isEmpty();
+        assertThat(f.alunos.dados).isEmpty();
+    }
+
+    @Test
+    void biometriaForaNoCadastroDeixaVisitanteExpiradoParaOJobLimpar() {
+        f.reconhecimento.fora = true;
+        assertThatThrownBy(() -> visitantes.criar(selfie, true)).isInstanceOf(ReconhecimentoIndisponivel.class);
+        assertThat(f.visitantes.expiradosAte(f.relogio.agora())).hasSize(1);
+        f.reconhecimento.fora = false;
+        assertThat(visitantes.expirar()).isEqualTo(1);
+        assertThat(f.alunos.dados).isEmpty();
+    }
+
+    @Test
     void limiteDe20PorHora() {
         for (int i = 0; i < VisitantesTemporarios.MAX_POR_HORA; i++) visitantes.criar(selfie, true);
         assertThatThrownBy(() -> visitantes.criar(selfie, true)).isInstanceOf(LimiteDeVisitantes.class);

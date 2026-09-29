@@ -15,6 +15,9 @@
 
 body { @apply bg-slate-950 text-slate-100 antialiased; }
 
+/* o Tailwind 4 não põe mais a mãozinha nos botões */
+button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+
 /* linha de leitura que percorre o rosto enquanto o terminal identifica */
 @keyframes leitura { from { top: 8%; } to { top: 88%; } }
 .linha-leitura { animation: leitura 1.1s ease-in-out infinite alternate; }

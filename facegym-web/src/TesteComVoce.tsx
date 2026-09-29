@@ -16,6 +16,7 @@ export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
   const [apagado, setApagado] = useState(false)
+  const [apagando, setApagando] = useState(false)
   const [agora, setAgora] = useState(Date.now())
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
 
   async function apagar() {
     if (!visitante) return
-    setErro(null)
+    setErro(null); setApagando(true)
     try {
       await apiJson(`/demo/visitantes/${visitante.id}`, { method: 'DELETE' })
       setConsentiu(false); setAberto(false); setApagado(true)
@@ -50,7 +51,7 @@ export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
     } catch (e) {
       const motivo = e instanceof ApiError ? e.message : 'erro inesperado'
       setErro(`Não consegui apagar agora (${motivo}). Tente de novo; de qualquer forma tudo some quando o tempo acabar.`)
-    }
+    } finally { setApagando(false) }
   }
 
   const mmss = `${Math.floor(restante / 60000)}:${String(Math.floor(restante / 1000) % 60).padStart(2, '0')}`
@@ -94,7 +95,10 @@ export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
             catraca: olhe para ela e toque em <strong>Fazer check-in</strong>.
           </p>
           <p className="text-slate-600">Seus dados somem em <strong className="tabular-nums text-grafite">{mmss}</strong>.</p>
-          <button onClick={apagar} className="font-medium text-red-700 underline underline-offset-4">Apagar meus dados agora</button>
+          <button onClick={apagar} disabled={apagando}
+            className="font-medium text-red-700 underline underline-offset-4 disabled:cursor-wait disabled:no-underline disabled:opacity-70">
+            {apagando ? 'Apagando seus dados…' : 'Apagar meus dados agora'}
+          </button>
         </div>
       )}
 

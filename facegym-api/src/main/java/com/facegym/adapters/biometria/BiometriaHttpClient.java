@@ -42,7 +42,7 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     private final Retry retry;
 
     public BiometriaHttpClient(BiometriaProperties props, CircuitBreakerRegistry registry) {
-        this.baseUrl = props.url();
+        this.baseUrl = props.url().replaceAll("/+$", ""); // aceita a URL com ou sem barra no final
         var jdk = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1) // uvicorn não fala HTTP/2
                 .connectTimeout(props.timeout()).build();
         var factory = new JdkClientHttpRequestFactory(jdk);

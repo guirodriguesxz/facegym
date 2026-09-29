@@ -148,4 +148,12 @@ class BiometriaHttpClientTest {
         bio.stubFor(get("/health").willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)));
         assertThat(client.pronta()).isFalse();
     }
+
+    @Test
+    void urlComBarraNoFinalFunciona() {
+        var props = new BiometriaProperties(bio.baseUrl() + "/", CHAVE, Duration.ofMillis(300), 4, 50f, Duration.ofSeconds(30));
+        var comBarra = new BiometriaHttpClient(props, CircuitBreakerRegistry.ofDefaults());
+        bio.stubFor(get("/health").willReturn(okJson("{\"status\":\"UP\"}")));
+        assertThat(comBarra.pronta()).isTrue();
+    }
 }

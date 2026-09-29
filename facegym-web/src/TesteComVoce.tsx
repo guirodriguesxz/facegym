@@ -5,15 +5,17 @@ import { Camera } from './Camera'
 export type Visitante = { id: string; nome: string; cpf: string; expiraEm: string }
 
 /** Recepção: cadastra o rosto do visitante por 10 minutos. O check-in acontece na catraca. */
-export function TesteComVoce({ visitante, onVisitante, ocupado }: {
+export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
   visitante: Visitante | null
   onVisitante: (v: Visitante | null) => void
+  onApagado: () => void
   ocupado: boolean
 }) {
   const [aberto, setAberto] = useState(false)
   const [consentiu, setConsentiu] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [carregando, setCarregando] = useState(false)
+  const [apagado, setApagado] = useState(false)
   const [agora, setAgora] = useState(Date.now())
 
   useEffect(() => {
@@ -32,6 +34,7 @@ export function TesteComVoce({ visitante, onVisitante, ocupado }: {
       form.append('foto', foto, 'selfie.jpg')
       form.append('consentimento', 'true')
       onVisitante(await apiForm<Visitante>('/demo/visitantes', form))
+      setApagado(false)
     } catch (e) {
       setErro(e instanceof ApiError ? e.message : 'Erro inesperado')
     } finally { setCarregando(false) }
@@ -42,7 +45,8 @@ export function TesteComVoce({ visitante, onVisitante, ocupado }: {
     setErro(null)
     try {
       await apiJson(`/demo/visitantes/${visitante.id}`, { method: 'DELETE' })
-      onVisitante(null); setConsentiu(false)
+      setConsentiu(false); setAberto(false); setApagado(true)
+      onApagado()
     } catch (e) {
       const motivo = e instanceof ApiError ? e.message : 'erro inesperado'
       setErro(`Não consegui apagar agora (${motivo}). Tente de novo; de qualquer forma tudo some quando o tempo acabar.`)
@@ -59,10 +63,17 @@ export function TesteComVoce({ visitante, onVisitante, ocupado }: {
         nunca a foto, e tudo é apagado em 10 minutos.
       </p>
 
+      {apagado && !visitante && (
+        <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-900" role="status">
+          Seus dados foram apagados. A câmera continua na catraca: faça um check-in e veja que ela não reconhece
+          mais você.
+        </p>
+      )}
+
       {!aberto && !visitante && (
         <button onClick={() => setAberto(true)}
           className="mt-4 rounded-lg bg-grafite px-4 py-2 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grafite">
-          Quero testar
+          {apagado ? 'Testar de novo' : 'Quero testar'}
         </button>
       )}
 

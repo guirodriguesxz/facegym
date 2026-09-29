@@ -14,6 +14,7 @@ export function Totem() {
   const [foto, setFoto] = useState<string | null>(null)
   const [token, setToken] = useState<string | undefined>()
   const [visitante, setVisitante] = useState<Visitante | null>(null)
+  const [cameraNaCatraca, setCameraNaCatraca] = useState(false) // continua depois de apagar, para provar que não reconhece mais
 
   useEffect(() => {
     fetch('/demo/alunos.json').then((r) => r.json()).then(setAlunos).catch(() => setAlunos([]))
@@ -64,11 +65,12 @@ export function Totem() {
   async function passarAluno(slug: string) {
     mostrarCatraca()
     setVisitante(null)
+    setCameraNaCatraca(false)
     setFoto(`/demo/${slug}.jpg`)
     checkInFoto(await fotoDeUrl(`/demo/${slug}.jpg`))
   }
 
-  const tela = visitante
+  const tela = visitante || cameraNaCatraca
     ? <Camera terminal rotulo="Fazer check-in" onFoto={checkInFoto} desabilitado={ocupado} />
     : foto
       ? <img src={foto} alt="" className="h-full w-full object-cover" />
@@ -116,7 +118,8 @@ export function Totem() {
             </ul>
           </section>
 
-          <TesteComVoce visitante={visitante} onVisitante={(v) => { setVisitante(v); setFoto(null); if (v) mostrarCatraca() }} ocupado={ocupado} />
+          <TesteComVoce visitante={visitante} onVisitante={(v) => { setVisitante(v); setCameraNaCatraca(!!v); setFoto(null); if (v) mostrarCatraca() }}
+            onApagado={() => { setVisitante(null); setCameraNaCatraca(true); setToken(undefined); setEstado({ fase: 'pronta' }); mostrarCatraca() }} ocupado={ocupado} />
         </div>
       </main>
     </div>

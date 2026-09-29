@@ -134,4 +134,18 @@ class BiometriaHttpClientTest {
         Thread.sleep(600);
         bio.verify(1, getRequestedFor(urlEqualTo("/health")));
     }
+
+    @Test
+    void prontaQuandoHealthResponde() {
+        bio.stubFor(get("/health").willReturn(okJson("{\"status\":\"UP\"}")));
+        assertThat(client.pronta()).isTrue();
+        assertThat(client.pronta()).isTrue();
+        bio.verify(1, getRequestedFor(urlEqualTo("/health"))); // resposta positiva fica em cache
+    }
+
+    @Test
+    void acordandoQuandoHealthFalha() {
+        bio.stubFor(get("/health").willReturn(aResponse().withFault(Fault.CONNECTION_RESET_BY_PEER)));
+        assertThat(client.pronta()).isFalse();
+    }
 }

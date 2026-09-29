@@ -34,6 +34,8 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
 
     private final String baseUrl;
     private final HttpClient aquecedor = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    private static final Duration CACHE_PRONTA = Duration.ofSeconds(30);
+    private final java.util.concurrent.atomic.AtomicLong prontaEm = new java.util.concurrent.atomic.AtomicLong(Long.MIN_VALUE);
     private final java.util.concurrent.atomic.AtomicLong ultimoAquecimento = new java.util.concurrent.atomic.AtomicLong(Long.MIN_VALUE);
     private final RestClient http;
     private final CircuitBreaker circuitBreaker;
@@ -83,6 +85,24 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
                 // melhor esforço
             }
         });
+    }
+
+    /** Consulta rápida para o totem: se não responder em 2 s, dispara o aquecimento e diz que está acordando. */
+    public boolean pronta() {
+        long ultima = prontaEm.get();
+        if (ultima != Long.MIN_VALUE && System.nanoTime() - ultima < CACHE_PRONTA.toNanos()) return true;
+        try {
+            var req = java.net.http.HttpRequest.newBuilder(java.net.URI.create(baseUrl + "/health"))
+                    .timeout(Duration.ofSeconds(2)).GET().build();
+            if (aquecedor.send(req, java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                prontaEm.set(System.nanoTime());
+                return true;
+            }
+        } catch (Exception e) {
+            // dormindo ou fora
+        } 
+        aquecer();
+        return false;
     }
 
     @Override

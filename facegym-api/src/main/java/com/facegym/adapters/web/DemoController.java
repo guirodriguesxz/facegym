@@ -31,7 +31,9 @@ public class DemoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void remover(@PathVariable UUID id) { visitantes.remover(id); }
 
+    public record Status(String biometria) {}
+
+    /** O totem chama até receber PRONTA; enquanto isso mostra "iniciando". */
     @PostMapping("/aquecer")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public void aquecer() { biometria.aquecer(); }
+    public Status aquecer() { return new Status(biometria.pronta() ? "PRONTA" : "ACORDANDO"); }
 }

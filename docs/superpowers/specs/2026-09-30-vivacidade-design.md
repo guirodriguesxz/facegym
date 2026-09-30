@@ -114,3 +114,13 @@ produção (8 s) cobre, com pouca folga.
 ## Fora do escopo
 
 Modelo passivo anti-spoofing, detecção de piscada, vivacidade no cadastro da biometria.
+
+## Ajustes feitos no plano
+
+Detalhes em `docs/superpowers/plans/2026-09-30-vivacidade.md`:
+
+1. As negações de vivacidade usam o status `PROVA_DE_VIDA_REPROVADA`, sem nome na resposta (a
+   identificação de quem falhou a prova de vida não é confiável), registradas como `NEGADO` com
+   `aluno_id` nulo.
+2. O desafio começa no botão "Fazer check-in", não na detecção automática do rosto.
+3. As selfies da calibração não entram no repositório; o teste `slow` usa as fotos fictícias da demo.

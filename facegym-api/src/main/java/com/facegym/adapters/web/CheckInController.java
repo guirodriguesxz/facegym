@@ -17,15 +17,15 @@ import java.util.Map;
 public class CheckInController {
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record Resposta(String status, String nome, String motivo, String token) {
+    public record Resposta(String status, String nome, String motivo, String token, Boolean vivacidade) {
         static Resposta de(ResultadoCheckIn r) {
             return switch (r) {
-                case Liberado l -> new Resposta("LIBERADO", l.nome(), null, null);
-                case Negado n -> new Resposta("NEGADO", n.nome(), n.motivo(), null);
-                case ConfirmarCpf c -> new Resposta("CONFIRMAR_CPF", null, null, c.token());
-                case NaoReconhecido x -> new Resposta("NAO_RECONHECIDO", null, null, null);
-                case BiometriaIndisponivel x -> new Resposta("BIOMETRIA_INDISPONIVEL", null, null, null);
-                case ProvaDeVidaReprovada p -> new Resposta("PROVA_DE_VIDA_REPROVADA", null, p.motivo(), null);
+                case Liberado l -> new Resposta("LIBERADO", l.nome(), null, null, l.provaDeVida() ? true : null);
+                case Negado n -> new Resposta("NEGADO", n.nome(), n.motivo(), null, null);
+                case ConfirmarCpf c -> new Resposta("CONFIRMAR_CPF", null, null, c.token(), null);
+                case NaoReconhecido x -> new Resposta("NAO_RECONHECIDO", null, null, null, null);
+                case BiometriaIndisponivel x -> new Resposta("BIOMETRIA_INDISPONIVEL", null, null, null, null);
+                case ProvaDeVidaReprovada p -> new Resposta("PROVA_DE_VIDA_REPROVADA", null, p.motivo(), null, null);
             };
         }
     }
@@ -36,8 +36,19 @@ public class CheckInController {
 
     public CheckInController(RealizarCheckIn checkIn) { this.checkIn = checkIn; }
 
+    @PostMapping("/check-ins/desafios")
+    public Map<String, String> desafio() {
+        var d = checkIn.novoDesafio();
+        return Map.of("token", d.token(), "lado", d.lado().name());
+    }
+
     @PostMapping("/check-ins")
-    public Resposta porFoto(@RequestParam("foto") MultipartFile foto) throws IOException {
+    public Resposta porFoto(@RequestParam("foto") MultipartFile foto,
+                            @RequestParam(value = "fotoVirada", required = false) MultipartFile virada,
+                            @RequestParam(value = "desafio", required = false) String desafio) throws IOException {
+        if (desafio != null || virada != null) {
+            return Resposta.de(checkIn.porFotoComDesafio(foto.getBytes(), virada == null ? null : virada.getBytes(), desafio));
+        }
         return Resposta.de(checkIn.porFoto(foto.getBytes()));
     }
 

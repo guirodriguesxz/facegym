@@ -57,9 +57,18 @@ public class UseCaseConfig {
                                     CheckInsPendentes pend, DesafiosDeVivacidade desafios, Relogio rel,
                                     @Value("${facegym.limiares.aceite}") double aceite,
                                     @Value("${facegym.limiares.duvida}") double duvida,
-                                    @Value("${facegym.antipassback}") Duration antipassback) {
+                                    @Value("${facegym.antipassback}") Duration antipassback,
+                                    @Value("${facegym.vivacidade.modo}") String modo,
+                                    @Value("${facegym.vivacidade.frente}") double frente,
+                                    @Value("${facegym.vivacidade.virada}") double virada,
+                                    @Value("${facegym.vivacidade.mesma-pessoa}") double mesmaPessoa) {
+        boolean obrigatoria = switch (modo) {
+            case "obrigatoria" -> true;
+            case "opcional" -> false;
+            default -> throw new IllegalStateException("VIVACIDADE deve ser obrigatoria ou opcional, veio: " + modo);
+        };
         return new RealizarCheckIn(r, a, p, m, ac, pend, desafios, rel, new Limiares(aceite, duvida), antipassback,
-                new ConfiguracaoDeVivacidade(false, new LimiaresDeVivacidade(0.15, 0.25, 0.30)));
+                new ConfiguracaoDeVivacidade(obrigatoria, new LimiaresDeVivacidade(frente, virada, mesmaPessoa)));
     }
 
     @Bean

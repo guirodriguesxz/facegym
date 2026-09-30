@@ -27,6 +27,7 @@ services:
       DB_PORT: 5432
       BIOMETRIA_URL: http://biometria:8000
       BIOMETRIA_KEY: local-dev-key-0123456789
+      VIVACIDADE: opcional  # alunos fictícios da demo usam foto única
       ADMIN_PASSWORD: admin12345  # só para rodar localmente
       CORS_ALLOWED_ORIGINS: http://localhost:5173
     depends_on: { api-db: { condition: service_healthy }, biometria: { condition: service_started } }

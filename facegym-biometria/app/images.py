@@ -6,13 +6,16 @@ MAX_SIDE = 1600
 # Recusa antes de decodificar: uma "bomba" de descompressão cabe em poucos KB
 # e ocuparia centenas de MB ao ser aberta.
 MAX_PIXELS = 40_000_000
+# Foto de câmera só vem nestes formatos; os demais decodificadores do Pillow concentram as falhas
+# de memória conhecidas e nem chegam a ser tentados.
+FORMATOS = ["JPEG", "PNG", "WEBP"]
 
 class InvalidImage(Exception):
     pass
 
 def decode_image(data: bytes) -> np.ndarray:
     try:
-        img = Image.open(io.BytesIO(data))
+        img = Image.open(io.BytesIO(data), formats=FORMATOS)
         if img.width * img.height > MAX_PIXELS:
             raise InvalidImage()
         img.draft("RGB", (MAX_SIDE, MAX_SIDE))  # JPEG: decodifica já reduzido

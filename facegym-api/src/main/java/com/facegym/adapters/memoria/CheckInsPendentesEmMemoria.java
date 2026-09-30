@@ -18,12 +18,12 @@ public class CheckInsPendentesEmMemoria implements CheckInsPendentes {
     private final SecureRandom random = new SecureRandom();
 
     @Override
-    public String criar(UUID alunoId, Double score, Instant expiraEm) {
+    public String criar(UUID alunoId, Double score, boolean provaDeVida, Instant expiraEm) {
         dados.values().removeIf(e -> e.expiraEm().isBefore(Instant.now().minusSeconds(300)));
         byte[] bytes = new byte[16];
         random.nextBytes(bytes);
         String token = HexFormat.of().formatHex(bytes);
-        dados.put(token, new Entrada(new Pendente(alunoId, score), expiraEm));
+        dados.put(token, new Entrada(new Pendente(alunoId, score, provaDeVida), expiraEm));
         return token;
     }
 

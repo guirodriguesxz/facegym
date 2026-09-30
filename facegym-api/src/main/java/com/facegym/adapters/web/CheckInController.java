@@ -25,6 +25,7 @@ public class CheckInController {
                 case ConfirmarCpf c -> new Resposta("CONFIRMAR_CPF", null, null, c.token());
                 case NaoReconhecido x -> new Resposta("NAO_RECONHECIDO", null, null, null);
                 case BiometriaIndisponivel x -> new Resposta("BIOMETRIA_INDISPONIVEL", null, null, null);
+                case ProvaDeVidaReprovada p -> new Resposta("PROVA_DE_VIDA_REPROVADA", null, p.motivo(), null);
             };
         }
     }

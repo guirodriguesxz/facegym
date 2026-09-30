@@ -4,6 +4,7 @@ import com.facegym.adapters.memoria.CheckInsPendentesEmMemoria;
 import com.facegym.application.port.*;
 import com.facegym.domain.*;
 import com.facegym.domain.vivacidade.LadoDesafio;
+import com.facegym.domain.vivacidade.LimiaresDeVivacidade;
 
 import java.time.*;
 import java.util.*;
@@ -136,12 +137,20 @@ public class Fakes {
         alunos.aoRemover = visitantes.dados::remove; // cascata do banco
     }
 
+    public static final LimiaresDeVivacidade LIMIARES_VIVACIDADE = new LimiaresDeVivacidade(0.15, 0.25, 0.30);
+
+    /** Modo opcional: os testes antigos usam foto única. */
     public RealizarCheckIn checkIn() {
         return checkIn(Duration.ZERO);
     }
 
     public RealizarCheckIn checkIn(Duration antipassback) {
-        return new RealizarCheckIn(reconhecimento, alunos, planos, matriculas, acessos, pendentes, relogio,
-                new Limiares(0.41, 0.18), antipassback);
+        return checkIn(antipassback, false);
+    }
+
+    public RealizarCheckIn checkIn(Duration antipassback, boolean vivacidadeObrigatoria) {
+        return new RealizarCheckIn(reconhecimento, alunos, planos, matriculas, acessos, pendentes, desafios, relogio,
+                new Limiares(0.41, 0.18), antipassback,
+                new ConfiguracaoDeVivacidade(vivacidadeObrigatoria, LIMIARES_VIVACIDADE));
     }
 }

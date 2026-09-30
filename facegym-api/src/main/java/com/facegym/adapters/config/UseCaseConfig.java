@@ -3,6 +3,8 @@ package com.facegym.adapters.config;
 import com.facegym.adapters.biometria.BiometriaHttpClient;
 import com.facegym.adapters.biometria.BiometriaProperties;
 import com.facegym.adapters.memoria.CheckInsPendentesEmMemoria;
+import com.facegym.adapters.memoria.DesafiosDeVivacidadeEmMemoria;
+import com.facegym.domain.vivacidade.LimiaresDeVivacidade;
 import com.facegym.application.*;
 import com.facegym.application.port.*;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -52,11 +54,16 @@ public class UseCaseConfig {
 
     @Bean
     RealizarCheckIn realizarCheckIn(ReconhecimentoFacial r, Alunos a, Planos p, Matriculas m, RegistroDeAcessos ac,
-                                    CheckInsPendentes pend, Relogio rel,
+                                    CheckInsPendentes pend, DesafiosDeVivacidade desafios, Relogio rel,
                                     @Value("${facegym.limiares.aceite}") double aceite,
                                     @Value("${facegym.limiares.duvida}") double duvida,
                                     @Value("${facegym.antipassback}") Duration antipassback) {
-        return new RealizarCheckIn(r, a, p, m, ac, pend, rel, new Limiares(aceite, duvida), antipassback);
+        return new RealizarCheckIn(r, a, p, m, ac, pend, desafios, rel, new Limiares(aceite, duvida), antipassback,
+                new ConfiguracaoDeVivacidade(false, new LimiaresDeVivacidade(0.15, 0.25, 0.30)));
+    }
+
+    @Bean
+    DesafiosDeVivacidade desafiosDeVivacidade() { return new DesafiosDeVivacidadeEmMemoria();
     }
 
     @Bean

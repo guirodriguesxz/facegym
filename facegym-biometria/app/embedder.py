@@ -1,9 +1,16 @@
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 import numpy as np
 
+@dataclass(frozen=True)
+class Rosto:
+    embedding: np.ndarray  # 512 floats, normalizado
+    kps: np.ndarray        # 5 pontos (x, y) na ordem da imagem
+
 class Embedder(Protocol):
     def embed(self, image_bgr: np.ndarray) -> np.ndarray | None: ...
+    def analyze(self, image_bgr: np.ndarray) -> Rosto | None: ...
 
 class InsightFaceEmbedder:
     """Carrega só detecção e reconhecimento do pacote, com 1 thread e sem arena de memória.
@@ -37,6 +44,10 @@ class InsightFaceEmbedder:
         self._rec.prepare(-1)
 
     def embed(self, image_bgr: np.ndarray) -> np.ndarray | None:
+        rosto = self.analyze(image_bgr)
+        return rosto.embedding if rosto else None
+
+    def analyze(self, image_bgr: np.ndarray) -> Rosto | None:
         from insightface.app.common import Face
 
         bboxes, kpss = self._det.detect(image_bgr, max_num=0, metric="default")
@@ -46,4 +57,4 @@ class InsightFaceEmbedder:
         i = int(np.argmax(areas))
         face = Face(bbox=bboxes[i, :4], kps=kpss[i], det_score=bboxes[i, 4])
         self._rec.get(image_bgr, face)
-        return face.normed_embedding.astype(np.float32)
+        return Rosto(face.normed_embedding.astype(np.float32), np.asarray(kpss[i], dtype=np.float32))

@@ -4,6 +4,9 @@ import numpy as np
 
 class Embedder(Protocol):
     def embed(self, image_bgr: np.ndarray) -> np.ndarray | None: ...
+    def analyze(self, image_bgr: np.ndarray) -> tuple[np.ndarray, float, np.ndarray] | None:
+        """Vetor do maior rosto, o giro dele (ver app.liveness.yaw) e a caixa x1, y1, x2, y2."""
+        ...
 
 class InsightFaceEmbedder:
     """Carrega só detecção e reconhecimento do pacote, com 1 thread e sem arena de memória.
@@ -37,7 +40,12 @@ class InsightFaceEmbedder:
         self._rec.prepare(-1)
 
     def embed(self, image_bgr: np.ndarray) -> np.ndarray | None:
+        analise = self.analyze(image_bgr)
+        return analise[0] if analise is not None else None
+
+    def analyze(self, image_bgr: np.ndarray) -> tuple[np.ndarray, float, np.ndarray] | None:
         from insightface.app.common import Face
+        from app.liveness import yaw
 
         bboxes, kpss = self._det.detect(image_bgr, max_num=0, metric="default")
         if bboxes.shape[0] == 0:
@@ -46,4 +54,4 @@ class InsightFaceEmbedder:
         i = int(np.argmax(areas))
         face = Face(bbox=bboxes[i, :4], kps=kpss[i], det_score=bboxes[i, 4])
         self._rec.get(image_bgr, face)
-        return face.normed_embedding.astype(np.float32)
+        return face.normed_embedding.astype(np.float32), yaw(kpss[i]), bboxes[i, :4]

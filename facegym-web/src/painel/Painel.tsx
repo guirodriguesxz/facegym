@@ -5,11 +5,15 @@ import { Login } from './Login'
 
 type Aluno = { id: string; nome: string; cpf: string; bloqueado: boolean; motivoBloqueio: string | null; consentimentoBiometricoEm: string | null }
 type Plano = { id: string; nome: string; inicio: string; fim: string; dias: string[]; acessosPorSemana: number | null }
+type Totem = { id: string; nome: string; criadoEm: string }
+type TotemNovo = Totem & { token: string }
 type Acesso = { id: string; dataHora: string; alunoId: string | null; resultado: 'LIBERADO' | 'NEGADO'; motivo: string | null; meio: 'FACIAL' | 'CPF'; score: number | null }
 
 export function Painel() {
   const [logado, setLogado] = useState(!!getToken())
-  const [aba, setAba] = useState<'acessos' | 'alunos' | 'planos'>('acessos')
+  const [aba, setAba] = useState<'acessos' | 'alunos' | 'planos' | 'totens'>('acessos')
+  const [totens, setTotens] = useState<Totem[]>([])
+  const [totemNovo, setTotemNovo] = useState<TotemNovo | null>(null)
   const [alunos, setAlunos] = useState<Aluno[]>([])
   const [planos, setPlanos] = useState<Plano[]>([])
   const [acessos, setAcessos] = useState<Acesso[]>([])
@@ -17,9 +21,9 @@ export function Painel() {
 
   const carregar = useCallback(async () => {
     try {
-      const [al, pl, ac] = await Promise.all([
-        apiJson<Aluno[]>('/alunos'), apiJson<Plano[]>('/planos'), apiJson<Acesso[]>('/acessos?limite=50')])
-      setAlunos(al); setPlanos(pl); setAcessos(ac); setErro(null)
+      const [al, pl, ac, to] = await Promise.all([
+        apiJson<Aluno[]>('/alunos'), apiJson<Plano[]>('/planos'), apiJson<Acesso[]>('/acessos?limite=50'), apiJson<Totem[]>('/totens')])
+      setAlunos(al); setPlanos(pl); setAcessos(ac); setTotens(to); setErro(null)
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) setLogado(false)
       else setErro(e instanceof ApiError ? e.message : 'Erro inesperado')
@@ -48,7 +52,7 @@ export function Painel() {
         </div>
       </header>
       <nav className="mb-4 flex gap-2">
-        {(['acessos', 'alunos', 'planos'] as const).map((a) => (
+        {(['acessos', 'alunos', 'planos', 'totens'] as const).map((a) => (
           <button key={a} onClick={() => setAba(a)}
             className={`rounded-lg px-3 py-1.5 text-sm capitalize ${aba === a ? 'bg-emerald-500 text-slate-950' : 'bg-slate-900 text-slate-300'}`}>{a}</button>
         ))}
@@ -92,6 +96,8 @@ export function Painel() {
                 {a.bloqueado
                   ? <button onClick={() => acao(() => apiJson(`/alunos/${a.id}/bloqueio`, { method: 'DELETE' }))} className="rounded bg-slate-800 px-2 py-1">Desbloquear</button>
                   : <button onClick={() => { const m = prompt('Motivo do bloqueio'); if (m) acao(() => apiJson(`/alunos/${a.id}/bloqueio`, { method: 'POST', body: JSON.stringify({ motivo: m }) })) }} className="rounded bg-slate-800 px-2 py-1">Bloquear</button>}
+                <button onClick={() => { const pin = prompt(`Novo PIN de ${a.nome} (4 a 6 dígitos)`); if (pin) acao(() => apiJson(`/alunos/${a.id}/pin`, { method: 'PUT', body: JSON.stringify({ pin }) })) }}
+                  className="rounded bg-slate-800 px-2 py-1">Definir PIN</button>
                 {a.consentimentoBiometricoEm && (
                   <button onClick={() => { if (confirm(`Apagar a biometria de ${a.nome}?`)) acao(() => apiJson(`/alunos/${a.id}/biometria`, { method: 'DELETE' })) }}
                     className="rounded bg-slate-800 px-2 py-1 text-rose-300">Remover biometria</button>
@@ -100,6 +106,33 @@ export function Painel() {
             </li>
           ))}
         </ul>
+      )}
+
+      {aba === 'totens' && (
+        <section className="space-y-3">
+          <p className="max-w-prose text-sm text-slate-400">
+            Só totens cadastrados aqui liberam alunos reais. Sem totem, a catraca alcança apenas os alunos
+            fictícios da demo e os visitantes.
+          </p>
+          <button onClick={() => { const nome = prompt('Nome do totem (ex.: Entrada principal)'); if (nome) apiJson<TotemNovo>('/totens', { method: 'POST', body: JSON.stringify({ nome }) }).then((t) => { setTotemNovo(t); carregar() }).catch((e) => setErro(e instanceof ApiError ? e.message : 'Erro')) }}
+            className="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-medium text-slate-950">Cadastrar totem</button>
+          {totemNovo && (
+            <div className="rounded-xl bg-amber-500/10 p-3 text-sm text-amber-200 ring-1 ring-amber-500/30" role="alert">
+              <p className="font-medium">Abra este endereço no aparelho do totem “{totemNovo.nome}”. Ele não será mostrado de novo:</p>
+              <code className="mt-2 block break-all rounded bg-black/40 p-2 text-xs">{`${window.location.origin}/#totem=${totemNovo.token}`}</code>
+              <button onClick={() => setTotemNovo(null)} className="mt-2 text-xs underline">Já configurei, esconder</button>
+            </div>
+          )}
+          <ul className="space-y-2">
+            {totens.map((t) => (
+              <li key={t.id} className="flex items-center justify-between rounded-xl bg-slate-900 p-3 ring-1 ring-slate-800">
+                <span>{t.nome} <span className="text-xs text-slate-500">desde {new Date(t.criadoEm).toLocaleDateString('pt-BR')}</span></span>
+                <button onClick={() => { if (confirm(`Revogar o totem ${t.nome}? Ele deixa de liberar alunos reais.`)) acao(() => apiJson(`/totens/${t.id}`, { method: 'DELETE' })) }}
+                  className="rounded bg-slate-800 px-2 py-1 text-sm text-rose-300">Revogar</button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       {aba === 'planos' && (

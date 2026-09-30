@@ -1,6 +1,9 @@
 package com.facegym.adapters.config;
 
+import com.facegym.adapters.biometria.BiometriaProperties;
 import org.junit.jupiter.api.Test;
+
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,6 +23,14 @@ class SegredosTest {
     @Test
     void jwtSecretCurtoFalha() {
         assertThatThrownBy(() -> config.jwtKey("curto")).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void biometriaSemChaveOuComChaveCurtaNaoSobe() {
+        for (String chave : new String[]{null, "", "curta"}) {
+            assertThatThrownBy(() -> new BiometriaProperties("http://x", chave, Duration.ofSeconds(1), 4, 50f, Duration.ofSeconds(30)))
+                    .isInstanceOf(IllegalStateException.class);
+        }
     }
 
     @Test

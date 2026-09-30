@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -18,15 +19,21 @@ public class VisitantesJdbc implements Visitantes {
 
     @Override
     @Transactional
-    public void registrar(UUID alunoId, Instant criadoEm, Instant expiraEm) {
-        jdbc.sql("INSERT INTO visitante (aluno_id, criado_em, expira_em) VALUES (?, ?, ?)")
-                .param(alunoId).param(Timestamp.from(criadoEm)).param(Timestamp.from(expiraEm)).update();
+    public void registrar(UUID alunoId, Instant criadoEm, Instant expiraEm, String segredoHash) {
+        jdbc.sql("INSERT INTO visitante (aluno_id, criado_em, expira_em, segredo_hash) VALUES (?, ?, ?, ?)")
+                .param(alunoId).param(Timestamp.from(criadoEm)).param(Timestamp.from(expiraEm)).param(segredoHash).update();
         jdbc.sql("INSERT INTO visitante_log (criado_em) VALUES (?)").param(Timestamp.from(criadoEm)).update();
     }
 
     @Override
     public boolean existe(UUID alunoId) {
         return jdbc.sql("SELECT count(*) FROM visitante WHERE aluno_id = ?").param(alunoId).query(Long.class).single() > 0;
+    }
+
+    @Override
+    public Optional<String> segredoHash(UUID alunoId) {
+        return jdbc.sql("SELECT segredo_hash FROM visitante WHERE aluno_id = ? AND segredo_hash IS NOT NULL")
+                .param(alunoId).query(String.class).optional();
     }
 
     @Override

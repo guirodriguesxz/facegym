@@ -40,7 +40,7 @@ class VisitantesTemporariosTest {
         assertThat(f.reconhecimento.cadastrados).containsKey(v.id());
 
         f.reconhecimento.proxima = new Identificacao(v.id(), 0.9);
-        assertThat(f.checkIn().porFoto(selfie)).isEqualTo(new Liberado(v.nome()));
+        assertThat(checkInComDesafio(selfie)).isEqualTo(new Liberado(v.nome()));
     }
 
     @Test
@@ -147,7 +147,7 @@ class VisitantesTemporariosTest {
 
         // vetor órfão improvável, mas se a biometria ainda devolver o id: não reconhecido
         f.reconhecimento.proxima = new Identificacao(v.id(), 0.9);
-        assertThat(f.checkIn().porFoto(selfie)).isEqualTo(new NaoReconhecido());
+        assertThat(checkInComDesafio(selfie)).isEqualTo(new NaoReconhecido());
     }
 
     @Test
@@ -163,13 +163,22 @@ class VisitantesTemporariosTest {
     }
 
     @Test
-    void removerNaHoraSoFuncionaParaVisitante() {
+    void removerNaHoraExigeOSegredoDoVisitante() {
         var v = visitantes.criar(selfie, true);
-        visitantes.remover(v.id());
+        assertThat(f.visitantes.dados.get(v.id()).segredoHash()).isNotEqualTo(v.segredo()); // só o hash é guardado
+        assertThatThrownBy(() -> visitantes.remover(v.id(), null)).isInstanceOf(NaoEncontrado.class);
+        assertThatThrownBy(() -> visitantes.remover(v.id(), "errado")).isInstanceOf(NaoEncontrado.class);
+        assertThat(f.alunos.porId(v.id())).isPresent();
+        visitantes.remover(v.id(), v.segredo());
         assertThat(f.alunos.porId(v.id())).isEmpty();
 
         var aluno = new GestaoDeAlunos(f.alunos, f.reconhecimento, f.relogio).cadastrar("Ana", "529.982.247-25", null);
-        assertThatThrownBy(() -> visitantes.remover(aluno.id())).isInstanceOf(NaoEncontrado.class);
+        assertThatThrownBy(() -> visitantes.remover(aluno.id(), v.segredo())).isInstanceOf(NaoEncontrado.class);
         assertThat(f.alunos.porId(aluno.id())).isPresent();
+    }
+
+    private ResultadoCheckIn checkInComDesafio(byte[] foto) {
+        var checkIn = f.checkIn();
+        return checkIn.porFoto(foto, foto, checkIn.novoDesafio().id(), false); // visitante é público: sem totem
     }
 }

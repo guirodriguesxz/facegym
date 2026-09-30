@@ -12,4 +12,10 @@ import java.time.Duration;
 @ConfigurationProperties("facegym.biometria")
 public record BiometriaProperties(String url, String chave, Duration timeout, int janela, float taxaFalha,
                                   Duration espera) {
+    /** Sem chave padrão: um deploy sem BIOMETRIA_KEY não sobe em vez de usar um segredo publicado. */
+    public BiometriaProperties {
+        if (chave == null || chave.length() < 16) {
+            throw new IllegalStateException("BIOMETRIA_KEY precisa ter pelo menos 16 caracteres");
+        }
+    }
 }

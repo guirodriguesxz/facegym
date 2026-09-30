@@ -30,7 +30,7 @@ public class SecurityConfig {
         var corsConfig = new CorsConfiguration();
         corsConfig.setAllowedOrigins(List.of(cors.split(",")));
         corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        corsConfig.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        corsConfig.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Visitante-Segredo", "X-Totem-Token"));
         var source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", corsConfig);
 
@@ -39,10 +39,10 @@ public class SecurityConfig {
                 .cors(c -> c.configurationSource(source))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
-                        .requestMatchers(HttpMethod.POST, "/api/v1/check-ins/**", "/api/v1/demo/identificar",
-                                "/api/v1/demo/visitantes", "/api/v1/demo/aquecer", "/api/v1/auth/login").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/check-ins/**", "/api/v1/demo/visitantes",
+                                "/api/v1/demo/aquecer", "/api/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/demo/visitantes/*").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/prometheus", "/error").permitAll()
+                        .requestMatchers("/actuator/health", "/error").permitAll() // /actuator/prometheus exige login de admin
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o.jwt(j -> {}))
                 .build();

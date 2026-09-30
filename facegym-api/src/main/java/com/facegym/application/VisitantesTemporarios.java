@@ -5,6 +5,8 @@ import com.facegym.domain.Aluno;
 import com.facegym.domain.Cpf;
 import com.facegym.domain.Matricula;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -18,7 +20,8 @@ public class VisitantesTemporarios {
     public static final Duration VALIDADE = Duration.ofMinutes(10);
     public static final int MAX_POR_HORA = 20;
 
-    public record Visitante(UUID id, String nome, String cpf, Instant expiraEm) {}
+    /** segredo: entregue só a quem cadastrou; exigido para apagar antes do prazo. Guardamos apenas o hash. */
+    public record Visitante(UUID id, String nome, String cpf, Instant expiraEm, String segredo) {}
 
     private final Alunos alunos;
     private final Matriculas matriculas;
@@ -71,7 +74,7 @@ public class VisitantesTemporarios {
                 reconhecimento.remover(aluno.id());
                 alunos.remover(aluno.id());
             } catch (RuntimeException remocao) {
-                visitantes.registrar(aluno.id(), agora, agora); // já expirado: o job limpa os dois lados
+                visitantes.registrar(aluno.id(), agora, agora, null); // já expirado: o job limpa os dois lados
             }
             throw e;
         }
@@ -79,15 +82,23 @@ public class VisitantesTemporarios {
         LocalDate hoje = LocalDate.ofInstant(agora, relogio.fuso());
         matriculas.salvar(new Matricula(UUID.randomUUID(), aluno.id(), PLANO_VISITANTE, hoje, hoje.plusDays(1)));
         Instant expiraEm = agora.plus(VALIDADE);
-        visitantes.registrar(aluno.id(), agora, expiraEm);
-        return new Visitante(aluno.id(), aluno.nome(), cpf.valor(), expiraEm);
+        String segredo = Segredos.gerar();
+        visitantes.registrar(aluno.id(), agora, expiraEm, hash(segredo));
+        return new Visitante(aluno.id(), aluno.nome(), cpf.valor(), expiraEm, segredo);
     }
 
-    public void remover(UUID id) {
-        if (!visitantes.existe(id)) throw new NaoEncontrado("Visitante");
+    /** Segredo errado e visitante inexistente dão o mesmo erro: não revela quais ids existem. */
+    public void remover(UUID id, String segredo) {
+        String esperado = visitantes.segredoHash(id).orElse(null);
+        if (esperado == null || segredo == null || !MessageDigest.isEqual(
+                esperado.getBytes(StandardCharsets.UTF_8), hash(segredo).getBytes(StandardCharsets.UTF_8))) {
+            throw new NaoEncontrado("Visitante");
+        }
         reconhecimento.remover(id);
         alunos.remover(id);
     }
+
+    static String hash(String segredo) { return Segredos.sha256(segredo); }
 
     /** Chamado a cada minuto. Se a biometria estiver fora, tenta de novo na próxima rodada. */
     public int expirar() {

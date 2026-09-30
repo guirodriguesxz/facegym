@@ -29,7 +29,10 @@ public class DemoController {
 
     @DeleteMapping("/visitantes/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void remover(@PathVariable UUID id) { visitantes.remover(id); }
+    public void remover(@PathVariable UUID id,
+                        @RequestHeader(value = "X-Visitante-Segredo", required = false) String segredo) {
+        visitantes.remover(id, segredo);
+    }
 
     public record Status(String biometria) {}
 

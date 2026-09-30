@@ -10,16 +10,20 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 6MB
+      max-request-size: 11MB  # check-in com prova de vida manda duas fotos
 
 server:
   port: ${PORT:8080}
+  # Render fica na frente: o IP real do cliente vem no X-Forwarded-For (usado no limite de tentativas)
+  forward-headers-strategy: native
 
 facegym:
   fuso: ${FACEGYM_FUSO:America/Sao_Paulo}
   limiares:
     aceite: ${LIMIAR_ACEITE:0.41}
     duvida: ${LIMIAR_DUVIDA:0.18}
+  # CPFs dos alunos fictícios da galeria (só têm foto estática): passam sem prova de vida.
+  demo-cpfs: ${FACEGYM_DEMO_CPFS:}
   jwt-secret: ${JWT_SECRET:}
   admin:
     email: ${ADMIN_EMAIL:admin@facegym.dev}
@@ -27,7 +31,7 @@ facegym:
   cors: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   biometria:
     url: ${BIOMETRIA_URL:http://localhost:8000}
-    chave: ${BIOMETRIA_KEY:local-dev-key-0123456789}
+    chave: ${BIOMETRIA_KEY:}  # obrigatória, mesma INTERNAL_KEY do serviço de biometria
     timeout: ${BIOMETRIA_TIMEOUT:2s}  # produção (CPU fracionada) usa mais
     janela: 10
     taxa-falha: 50
@@ -40,4 +44,4 @@ management:
         include: health,prometheus
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized  # anônimo (Render) vê só UP/DOWN

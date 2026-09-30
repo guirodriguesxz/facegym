@@ -7,11 +7,17 @@ import com.facegym.domain.*;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.security.SecureRandom;
 import java.util.Optional;
 import java.util.UUID;
 
 public class RealizarCheckIn {
     static final Duration VALIDADE_CONFIRMACAO = Duration.ofSeconds(60);
+    static final String MOTIVO_GENERICO = "Procure a recepção";
+    /** Tempo para tirar as duas fotos depois de pedir o desafio. */
+    static final Duration VALIDADE_DESAFIO = Duration.ofSeconds(20);
+
+    public record Desafio(String id, DesafiosDeVida.Direcao direcao, Instant expiraEm) {}
 
     private final ReconhecimentoFacial reconhecimento;
     private final Alunos alunos;
@@ -21,10 +27,15 @@ public class RealizarCheckIn {
     private final CheckInsPendentes pendentes;
     private final Relogio relogio;
     private final Limiares limiares;
+    private final Publico publico;
+    private final PinDoAluno pin;
+    private final DesafiosDeVida desafios;
+    private final SecureRandom random = new SecureRandom();
     private final PoliticaDeAcesso politica = new PoliticaDeAcesso();
 
     public RealizarCheckIn(ReconhecimentoFacial reconhecimento, Alunos alunos, Planos planos, Matriculas matriculas,
-                           RegistroDeAcessos acessos, CheckInsPendentes pendentes, Relogio relogio, Limiares limiares) {
+                           RegistroDeAcessos acessos, CheckInsPendentes pendentes, Relogio relogio, Limiares limiares,
+                           Publico publico, PinDoAluno pin, DesafiosDeVida desafios) {
         this.reconhecimento = reconhecimento;
         this.alunos = alunos;
         this.planos = planos;
@@ -33,15 +44,43 @@ public class RealizarCheckIn {
         this.pendentes = pendentes;
         this.relogio = relogio;
         this.limiares = limiares;
+        this.publico = publico;
+        this.pin = pin;
+        this.desafios = desafios;
     }
 
-    public ResultadoCheckIn porFoto(byte[] foto) {
+    /** Sorteia para que lado virar o rosto: fotos preparadas antes não sabem o lado. */
+    public Desafio novoDesafio() {
+        var direcao = DesafiosDeVida.Direcao.values()[random.nextInt(DesafiosDeVida.Direcao.values().length)];
+        Instant expiraEm = relogio.agora().plus(VALIDADE_DESAFIO);
+        return new Desafio(desafios.criar(direcao, expiraEm), direcao, expiraEm);
+    }
+
+    /**
+     * virado: segunda foto do desafio de prova de vida (rosto girado para o lado de desafioId). Sem ela
+     * só passam os alunos da galeria de demonstração, que só têm foto estática.
+     * totem: a requisição veio de um totem registrado. Sem isso, só se alcança o {@link Publico}.
+     */
+    public ResultadoCheckIn porFoto(byte[] foto, byte[] virado, String desafioId, boolean totem) {
+        Optional<DesafiosDeVida.Direcao> direcao = Optional.empty();
+        if (virado != null) {
+            direcao = desafios.consumir(desafioId, relogio.agora());
+            if (direcao.isEmpty()) {
+                registrar(null, ResultadoAcesso.NEGADO, "Desafio de prova de vida inválido ou expirado", MeioIdentificacao.FACIAL, null);
+                return new NaoReconhecido();
+            }
+        }
         Identificacao id;
         try {
-            id = reconhecimento.identificar(foto);
+            id = virado == null ? reconhecimento.identificar(foto)
+                    : reconhecimento.identificarComProvaDeVida(foto, virado, direcao.get());
         } catch (ReconhecimentoIndisponivel e) {
             registrar(null, ResultadoAcesso.NEGADO, "Reconhecimento facial indisponível", MeioIdentificacao.FACIAL, null);
             return new BiometriaIndisponivel();
+        }
+        if (virado != null && !id.vivo()) {
+            registrar(null, ResultadoAcesso.NEGADO, "Prova de vida reprovada", MeioIdentificacao.FACIAL, null);
+            return new NaoReconhecido();
         }
         if (!id.encontrou() || id.score() < limiares.duvida()) {
             registrar(null, ResultadoAcesso.NEGADO, "Rosto não reconhecido", MeioIdentificacao.FACIAL, id.score());
@@ -50,6 +89,14 @@ public class RealizarCheckIn {
         Optional<Aluno> aluno = alunos.porId(id.alunoId());
         if (aluno.isEmpty()) {
             registrar(null, ResultadoAcesso.NEGADO, "Biometria sem aluno cadastrado", MeioIdentificacao.FACIAL, id.score());
+            return new NaoReconhecido();
+        }
+        if (!totem && !publico.contem(aluno.get())) {
+            registrar(aluno.get().id(), ResultadoAcesso.NEGADO, "Aluno real fora de totem registrado", MeioIdentificacao.FACIAL, id.score());
+            return new NaoReconhecido();
+        }
+        if (!id.vivo() && !publico.demo(aluno.get())) {
+            registrar(aluno.get().id(), ResultadoAcesso.NEGADO, "Sem prova de vida", MeioIdentificacao.FACIAL, id.score());
             return new NaoReconhecido();
         }
         if (id.score() < limiares.aceite()) {
@@ -70,20 +117,34 @@ public class RealizarCheckIn {
         return decidir(aluno.get(), MeioIdentificacao.CPF, pendente.get().score());
     }
 
-    public ResultadoCheckIn porCpf(String cpf) {
+    /**
+     * Só o CPF não prova quem está na catraca: aluno real precisa de totem registrado e do PIN.
+     * Todos os caminhos de recusa respondem igual e gastam o mesmo BCrypt (sem oráculo de cadastro).
+     */
+    public ResultadoCheckIn porCpf(String cpf, String pinDigitado, boolean totem) {
         Optional<Aluno> aluno = alunos.porCpf(Cpf.of(cpf));
         if (aluno.isEmpty()) {
+            pin.gastarTempo(pinDigitado);
             registrar(null, ResultadoAcesso.NEGADO, "CPF não cadastrado", MeioIdentificacao.CPF, null);
             return new NaoReconhecido();
         }
-        return decidir(aluno.get(), MeioIdentificacao.CPF, null);
-    }
-
-    /** Câmera de visitantes: só diz de quem é o rosto, sem registrar acesso. */
-    public Optional<String> demo(byte[] foto) {
-        Identificacao id = reconhecimento.compararDemo(foto);
-        if (!id.encontrou() || id.score() < limiares.aceite()) return Optional.empty();
-        return alunos.porId(id.alunoId()).map(Aluno::nome);
+        if (!publico.contem(aluno.get())) {
+            if (!totem) {
+                pin.gastarTempo(pinDigitado);
+                registrar(aluno.get().id(), ResultadoAcesso.NEGADO, "CPF fora de totem registrado", MeioIdentificacao.CPF, null);
+                return new NaoReconhecido();
+            }
+            if (!pin.confere(aluno.get().id(), pinDigitado, relogio.agora())) {
+                registrar(aluno.get().id(), ResultadoAcesso.NEGADO, "PIN inválido ou bloqueado", MeioIdentificacao.CPF, null);
+                return new NaoReconhecido();
+            }
+        }
+        // O motivo fica no registro de acessos, não na tela.
+        return switch (decidir(aluno.get(), MeioIdentificacao.CPF, null)) {
+            case Liberado l -> new Liberado(null);
+            case Negado n -> new Negado(null, MOTIVO_GENERICO);
+            case ResultadoCheckIn outro -> outro;
+        };
     }
 
     private ResultadoCheckIn decidir(Aluno aluno, MeioIdentificacao meio, Double score) {

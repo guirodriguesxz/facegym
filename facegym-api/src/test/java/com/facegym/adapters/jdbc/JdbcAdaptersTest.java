@@ -21,7 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import({AlunosJdbc.class, PlanosJdbc.class, MatriculasJdbc.class, AcessosJdbc.class, VisitantesJdbc.class})
+@Import({AlunosJdbc.class, PlanosJdbc.class, MatriculasJdbc.class, AcessosJdbc.class, VisitantesJdbc.class, TotensJdbc.class, PinsJdbc.class})
 class JdbcAdaptersTest {
 
     @Container
@@ -95,9 +95,10 @@ class JdbcAdaptersTest {
                 LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 6)));
         acessos.registrar(new Acesso(UUID.randomUUID(), Instant.now(), a.id(), ResultadoAcesso.LIBERADO, null, MeioIdentificacao.FACIAL, 0.9));
         Instant t = Instant.parse("2026-10-05T11:00:00Z");
-        visitantes.registrar(a.id(), t, t.plusSeconds(600));
+        visitantes.registrar(a.id(), t, t.plusSeconds(600), "abc");
 
         assertThat(visitantes.existe(a.id())).isTrue();
+        assertThat(visitantes.segredoHash(a.id())).contains("abc");
         assertThat(visitantes.expiradosAte(t.plusSeconds(599))).isEmpty();
         assertThat(visitantes.expiradosAte(t.plusSeconds(600))).containsExactly(a.id());
 
@@ -106,5 +107,30 @@ class JdbcAdaptersTest {
         assertThat(alunos.porId(a.id())).isEmpty();
         assertThat(visitantes.existe(a.id())).isFalse();
         assertThat(visitantes.criadosDesde(t.minusSeconds(1))).isEqualTo(1); // log sobrevive
+    }
+
+    @Autowired TotensJdbc totens;
+    @Autowired PinsJdbc pins;
+
+    @Test
+    void totemAutenticaSoComOTokenEntregueEGuardaSoOHash() {
+        var novo = totens.criar("Entrada", Instant.parse("2026-10-05T11:00:00Z"));
+        assertThat(totens.autenticado(novo.token())).isTrue();
+        assertThat(totens.autenticado("outro")).isFalse();
+        assertThat(totens.autenticado(null)).isFalse();
+        assertThat(totens.listar()).extracting(TotensJdbc.Totem::nome).contains("Entrada");
+        totens.remover(novo.id());
+        assertThat(totens.autenticado(novo.token())).isFalse();
+    }
+
+    @Test
+    void pinSobrescreveESaiComOAluno() {
+        Aluno a = Aluno.novo("Pina", Cpf.of("86288366757"), null);
+        alunos.salvar(a);
+        pins.definir(a.id(), "h1");
+        pins.definir(a.id(), "h2");
+        assertThat(pins.hash(a.id())).contains("h2");
+        alunos.remover(a.id());
+        assertThat(pins.hash(a.id())).isEmpty();
     }
 }

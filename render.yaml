@@ -37,6 +37,8 @@ services:
         value: admin@facegym.dev
       - key: ADMIN_PASSWORD
         sync: false
+      - key: FACEGYM_DEMO_CPFS
+        value: 52998224725,11144477735,39053344705,86288366757,34608514300  # alunos da galeria (scripts/seed-demo.sh)
       - key: CORS_ALLOWED_ORIGINS
         value: https://facegym-web.vercel.app
       - key: JAVA_TOOL_OPTIONS

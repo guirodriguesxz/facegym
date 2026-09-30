@@ -50,11 +50,35 @@ public class UseCaseConfig {
     CheckInsPendentes checkInsPendentes() { return new CheckInsPendentesEmMemoria(); }
 
     @Bean
+    CofreDePin cofreDePin(org.springframework.security.crypto.password.PasswordEncoder encoder) {
+        return new CofreDePin() {
+            public String gerarHash(String pin) { return encoder.encode(pin); }
+            public boolean confere(String pin, String hash) { return encoder.matches(pin, hash); }
+        };
+    }
+
+    @Bean
+    TentativasDePin tentativasDePin() { return new com.facegym.adapters.memoria.TentativasDePinEmMemoria(); }
+
+    @Bean
+    PinDoAluno pinDoAluno(Pins pins, CofreDePin cofre, TentativasDePin tentativas, Alunos alunos) {
+        return new PinDoAluno(pins, cofre, tentativas, alunos);
+    }
+
+    @Bean
+    DesafiosDeVida desafiosDeVida() { return new com.facegym.adapters.memoria.DesafiosDeVidaEmMemoria(); }
+
+    @Bean
     RealizarCheckIn realizarCheckIn(ReconhecimentoFacial r, Alunos a, Planos p, Matriculas m, RegistroDeAcessos ac,
-                                    CheckInsPendentes pend, Relogio rel,
+                                    CheckInsPendentes pend, Relogio rel, DesafiosDeVida desafios, Visitantes visitantes,
+                                    PinDoAluno pin,
                                     @Value("${facegym.limiares.aceite}") double aceite,
-                                    @Value("${facegym.limiares.duvida}") double duvida) {
-        return new RealizarCheckIn(r, a, p, m, ac, pend, rel, new Limiares(aceite, duvida));
+                                    @Value("${facegym.limiares.duvida}") double duvida,
+                                    @Value("${facegym.demo-cpfs:}") String demoCpfs) {
+        var isentos = java.util.Arrays.stream(demoCpfs.split(",")).map(String::trim).filter(s -> !s.isEmpty())
+                .map(com.facegym.domain.Cpf::of).collect(java.util.stream.Collectors.toSet());
+        return new RealizarCheckIn(r, a, p, m, ac, pend, rel, new Limiares(aceite, duvida),
+                new Publico(isentos, visitantes), pin, desafios);
     }
 
     @Bean

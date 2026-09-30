@@ -105,6 +105,18 @@ class BiometriaHttpClientTest {
     }
 
     @Test
+    void provaDeVidaMandaAsDuasFotosELeVivo() {
+        UUID aluno = UUID.randomUUID();
+        bio.stubFor(post("/faces/identify-live").willReturn(okJson("{\"alunoId\":\"" + aluno + "\",\"score\":0.8,\"vivo\":true}")));
+        assertThat(client.identificarComProvaDeVida(FOTO, new byte[]{7}, com.facegym.application.port.DesafiosDeVida.Direcao.DIREITA))
+                .isEqualTo(new Identificacao(aluno, 0.8, true));
+        bio.verify(postRequestedFor(urlEqualTo("/faces/identify-live"))
+                .withRequestBodyPart(com.github.tomakehurst.wiremock.client.WireMock.aMultipart().withName("turned").build())
+                .withRequestBodyPart(com.github.tomakehurst.wiremock.client.WireMock.aMultipart().withName("direction")
+                        .withBody(com.github.tomakehurst.wiremock.client.WireMock.equalTo("DIREITA")).build()));
+    }
+
+    @Test
     void demoUsaRotaPropria() {
         bio.stubFor(post("/faces/compare-demo").willReturn(okJson("{\"alunoId\":null,\"score\":null}")));
         client.compararDemo(FOTO);

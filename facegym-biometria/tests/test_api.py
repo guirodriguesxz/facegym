@@ -96,7 +96,7 @@ def test_oversized_content_length_is_413_before_parsing(client, auth):
 def test_health_answers_while_inference_is_running(repo):
     import socket, time, httpx, uvicorn
     from app.api import create_app
-    from tests.conftest import KEY
+    from tests.conftest import KEY, FakeAntiSpoof
     started, release = threading.Event(), threading.Event()
 
     class SlowEmbedder:
@@ -106,7 +106,7 @@ def test_health_answers_while_inference_is_running(repo):
             return None
 
     sock = socket.socket(); sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]; sock.close()
-    server = uvicorn.Server(uvicorn.Config(create_app(SlowEmbedder(), repo, KEY), port=port, log_level="error"))
+    server = uvicorn.Server(uvicorn.Config(create_app(SlowEmbedder(), repo, KEY, FakeAntiSpoof()), port=port, log_level="error"))
     threading.Thread(target=server.run, daemon=True).start()
     base = f"http://127.0.0.1:{port}"
     for _ in range(100):

@@ -2,6 +2,9 @@ package com.facegym.adapters.web;
 
 import com.facegym.application.GestaoDeAlunos;
 import com.facegym.application.GestaoDePlanos;
+import com.facegym.application.PinDoAluno;
+import com.facegym.adapters.jdbc.TotensJdbc;
+import com.facegym.application.port.Relogio;
 import com.facegym.application.port.RegistroDeAcessos;
 import com.facegym.domain.*;
 import jakarta.validation.Valid;
@@ -29,6 +32,8 @@ public class AdminController {
                     a.motivoBloqueio(), a.consentimentoBiometricoEm());
         }
     }
+    public record PinRequest(@NotBlank @Pattern(regexp = "\\d{4,6}", message = "deve ter de 4 a 6 dígitos") String pin) {}
+    public record TotemRequest(@NotBlank @Size(max = 80) String nome) {}
     public record BloqueioRequest(@NotBlank @Size(max = 200) String motivo) {}
     public record PlanoRequest(@NotBlank @Size(max = 80) String nome, @NotNull @PositiveOrZero BigDecimal preco,
                                @NotEmpty Set<DayOfWeek> dias, @NotNull LocalTime inicio, @NotNull LocalTime fim,
@@ -39,12 +44,35 @@ public class AdminController {
     private final GestaoDeAlunos alunos;
     private final GestaoDePlanos planos;
     private final RegistroDeAcessos acessos;
+    private final PinDoAluno pins;
+    private final TotensJdbc totens;
+    private final Relogio relogio;
 
-    public AdminController(GestaoDeAlunos alunos, GestaoDePlanos planos, RegistroDeAcessos acessos) {
+    public AdminController(GestaoDeAlunos alunos, GestaoDePlanos planos, RegistroDeAcessos acessos, PinDoAluno pins,
+                           TotensJdbc totens, Relogio relogio) {
         this.alunos = alunos;
         this.planos = planos;
         this.acessos = acessos;
+        this.pins = pins;
+        this.totens = totens;
+        this.relogio = relogio;
     }
+
+    @PutMapping("/alunos/{id}/pin")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void definirPin(@PathVariable UUID id, @Valid @RequestBody PinRequest r) { pins.definir(id, r.pin()); }
+
+    @GetMapping("/totens")
+    public List<TotensJdbc.Totem> listarTotens() { return totens.listar(); }
+
+    /** Única vez em que o token aparece: configure o totem com ele. */
+    @PostMapping("/totens")
+    @ResponseStatus(HttpStatus.CREATED)
+    public TotensJdbc.TotemNovo cadastrarTotem(@Valid @RequestBody TotemRequest r) { return totens.criar(r.nome(), relogio.agora()); }
+
+    @DeleteMapping("/totens/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removerTotem(@PathVariable UUID id) { totens.remover(id); }
 
     @GetMapping("/alunos")
     public List<AlunoResponse> listarAlunos() { return alunos.listar().stream().map(AlunoResponse::de).toList(); }

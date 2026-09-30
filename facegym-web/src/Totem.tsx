@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ApiError, apiForm, apiJson, fotoDeUrl } from './api'
-import { Camera } from './Camera'
+import { ApiError, apiForm, apiJson, configurarTotemPelaUrl, fotoDeUrl, getTotem } from './api'
+import { Camera, type Desafio } from './Camera'
 import { Catraca, type EstadoCatraca } from './Catraca'
 import type { RespostaCheckIn } from './resultado'
 import { TesteComVoce, type Visitante } from './TesteComVoce'
@@ -14,6 +14,7 @@ export function Totem() {
   const [foto, setFoto] = useState<string | null>(null)
   const [token, setToken] = useState<string | undefined>()
   const [visitante, setVisitante] = useState<Visitante | null>(null)
+  const [totemRegistrado] = useState(() => { configurarTotemPelaUrl(); return !!getTotem() })
   const [cameraNaCatraca, setCameraNaCatraca] = useState(false) // continua depois de apagar, para provar que não reconhece mais
 
   useEffect(() => {
@@ -47,15 +48,19 @@ export function Totem() {
     }
   }
 
-  const checkInFoto = (blob: Blob) => executar(() => {
+  // virado: segunda foto da prova de vida; a galeria demo manda só a foto estática
+  const checkInFoto = (blob: Blob, virado?: Blob, desafioId?: string) => executar(() => {
     const form = new FormData(); form.append('foto', blob, 'foto.jpg')
+    if (virado && desafioId) { form.append('virado', virado, 'virado.jpg'); form.append('desafio', desafioId) }
     return apiForm<RespostaCheckIn>('/check-ins', form)
   })
 
-  const checkInCpf = (cpf: string) => executar(() =>
+  const checkInCpf = (cpf: string, pin?: string) => executar(() =>
     token
       ? apiJson<RespostaCheckIn>(`/check-ins/${token}/cpf`, { method: 'POST', body: JSON.stringify({ cpf }) })
-      : apiJson<RespostaCheckIn>('/check-ins/cpf', { method: 'POST', body: JSON.stringify({ cpf }) }))
+      : apiJson<RespostaCheckIn>('/check-ins/cpf', { method: 'POST', body: JSON.stringify({ cpf, pin }) }))
+
+  const pedirDesafio = () => apiJson<Desafio>('/check-ins/desafio', { method: 'POST' })
 
   // no celular a catraca fica acima da galeria: rola até ela para mostrar o resultado
   const mostrarCatraca = () => {
@@ -71,7 +76,7 @@ export function Totem() {
   }
 
   const tela = visitante || cameraNaCatraca
-    ? <Camera terminal rotulo="Fazer check-in" onFoto={checkInFoto} desabilitado={ocupado} />
+    ? <Camera terminal desafio={pedirDesafio} rotulo="Fazer check-in" onFoto={checkInFoto} desabilitado={ocupado} />
     : foto
       ? <img src={foto} alt="" className="h-full w-full object-cover" />
       : <div className="h-full w-full bg-[radial-gradient(circle_at_50%_40%,#1b2227,#070b0e_70%)]" />
@@ -80,7 +85,8 @@ export function Totem() {
     <div className="min-h-screen bg-concreto text-grafite">
       <main className="mx-auto grid max-w-6xl gap-10 px-4 py-8 lg:grid-cols-[380px_1fr] lg:gap-16 lg:py-12">
         <div id="catraca" className="scroll-mt-4 lg:sticky lg:top-8 lg:self-start">
-          <Catraca estado={estado} tela={tela} onCpf={checkInCpf} />
+          <Catraca estado={estado} tela={tela} onCpf={checkInCpf} pedePin={totemRegistrado} />
+          {totemRegistrado && <p className="mt-2 text-center text-xs text-slate-500">Totem registrado: alunos reais habilitados</p>}
         </div>
 
         <div className="space-y-10">

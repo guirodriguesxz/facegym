@@ -19,7 +19,9 @@ public class CheckInsPendentesEmMemoria implements CheckInsPendentes {
 
     @Override
     public String criar(UUID alunoId, Double score, Instant expiraEm) {
-        dados.values().removeIf(e -> e.expiraEm().isBefore(Instant.now().minusSeconds(300)));
+        // vida de segundos: remover tudo que venceu mantém o mapa do tamanho de ~vazão × validade
+        Instant agora = Instant.now();
+        dados.values().removeIf(e -> e.expiraEm().isBefore(agora));
         byte[] bytes = new byte[16];
         random.nextBytes(bytes);
         String token = HexFormat.of().formatHex(bytes);

@@ -29,6 +29,7 @@ services:
       BIOMETRIA_KEY: local-dev-key-0123456789
       ADMIN_PASSWORD: admin12345  # só para rodar localmente
       CORS_ALLOWED_ORIGINS: http://localhost:5173
+      FACEGYM_DEMO_CPFS: 52998224725,11144477735,39053344705,86288366757,34608514300
     depends_on: { api-db: { condition: service_healthy }, biometria: { condition: service_started } }
     ports: ["8081:8080"]
     mem_limit: 512m

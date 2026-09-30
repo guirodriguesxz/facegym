@@ -3,6 +3,7 @@ package com.facegym.adapters.web;
 import com.facegym.application.RealizarCheckIn;
 import com.facegym.application.ResultadoCheckIn;
 import com.facegym.application.ResultadoCheckIn.*;
+import com.facegym.application.port.Totens;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -10,7 +11,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -29,32 +29,42 @@ public class CheckInController {
         }
     }
 
-    public record CpfRequest(@NotBlank String cpf) {}
+    /** pin: exigido para aluno real (não para os fictícios da demo). */
+    public record CpfRequest(@NotBlank String cpf, String pin) {}
+    public record ConfirmacaoRequest(@NotBlank String cpf) {}
+
+    static final String TOTEM = "X-Totem-Token";
 
     private final RealizarCheckIn checkIn;
+    private final Totens totens;
 
-    public CheckInController(RealizarCheckIn checkIn) { this.checkIn = checkIn; }
+    public CheckInController(RealizarCheckIn checkIn, Totens totens) {
+        this.checkIn = checkIn;
+        this.totens = totens;
+    }
 
     @PostMapping("/check-ins")
-    public Resposta porFoto(@RequestParam("foto") MultipartFile foto) throws IOException {
-        return Resposta.de(checkIn.porFoto(foto.getBytes()));
+    public Resposta porFoto(@RequestParam("foto") MultipartFile foto,
+                            @RequestParam(value = "virado", required = false) MultipartFile virado,
+                            @RequestParam(value = "desafio", required = false) String desafio,
+                            @RequestHeader(value = TOTEM, required = false) String totem) throws IOException {
+        return Resposta.de(checkIn.porFoto(foto.getBytes(), virado == null ? null : virado.getBytes(), desafio,
+                totens.autenticado(totem)));
+    }
+
+    /** O totem pede antes de fotografar e mostra para que lado virar o rosto. */
+    @PostMapping("/check-ins/desafio")
+    public RealizarCheckIn.Desafio desafio() {
+        return checkIn.novoDesafio();
     }
 
     @PostMapping("/check-ins/cpf")
-    public Resposta porCpf(@Valid @RequestBody CpfRequest req) {
-        return Resposta.de(checkIn.porCpf(req.cpf()));
+    public Resposta porCpf(@Valid @RequestBody CpfRequest req, @RequestHeader(value = TOTEM, required = false) String totem) {
+        return Resposta.de(checkIn.porCpf(req.cpf(), req.pin(), totens.autenticado(totem)));
     }
 
     @PostMapping("/check-ins/{token}/cpf")
-    public Resposta confirmar(@PathVariable String token, @Valid @RequestBody CpfRequest req) {
+    public Resposta confirmar(@PathVariable String token, @Valid @RequestBody ConfirmacaoRequest req) {
         return Resposta.de(checkIn.confirmarCpf(token, req.cpf()));
-    }
-
-    @PostMapping("/demo/identificar")
-    public Map<String, String> demo(@RequestParam("foto") MultipartFile foto) throws IOException {
-        var nome = checkIn.demo(foto.getBytes()).orElse(null);
-        var body = new java.util.HashMap<String, String>();
-        body.put("nome", nome);
-        return body;
     }
 }

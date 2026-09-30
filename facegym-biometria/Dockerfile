@@ -4,6 +4,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends g++ libgl1 libg
 WORKDIR /app
 COPY pyproject.toml .
 COPY app ./app
+COPY models ./models
 RUN pip install --no-cache-dir . \
     && python -c "from insightface.app import FaceAnalysis; FaceAnalysis(name='buffalo_s', allowed_modules=['detection','recognition'], providers=['CPUExecutionProvider']).prepare(ctx_id=-1)"
 EXPOSE 8000

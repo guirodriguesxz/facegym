@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ApiError, apiForm, apiJson } from './api'
 import { Camera } from './Camera'
 
-export type Visitante = { id: string; nome: string; cpf: string; expiraEm: string }
+export type Visitante = { id: string; nome: string; cpf: string; expiraEm: string; segredo: string }
 
 /** Recepção: cadastra o rosto do visitante por 10 minutos. O check-in acontece na catraca. */
 export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
@@ -45,7 +45,7 @@ export function TesteComVoce({ visitante, onVisitante, onApagado, ocupado }: {
     if (!visitante) return
     setErro(null); setApagando(true)
     try {
-      await apiJson(`/demo/visitantes/${visitante.id}`, { method: 'DELETE' })
+      await apiJson(`/demo/visitantes/${visitante.id}`, { method: 'DELETE', headers: { 'X-Visitante-Segredo': visitante.segredo } })
       setConsentiu(false); setAberto(false); setApagado(true)
       onApagado()
     } catch (e) {

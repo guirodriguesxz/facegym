@@ -20,13 +20,33 @@ def png(color: tuple[int, int, int], size=(64, 64), mode="RGB") -> bytes:
     return buf.getvalue()
 
 class FakeEmbedder:
-    """Decide o vetor pela cor do pixel (0,0) da imagem BGR."""
-    def __init__(self, by_rgb: dict[tuple[int, int, int], np.ndarray | None]):
+    """Decide o vetor e o giro pela cor do pixel (0,0) da imagem BGR."""
+    def __init__(self, by_rgb: dict[tuple[int, int, int], np.ndarray | None],
+                 yaw_by_rgb: dict[tuple[int, int, int], float] | None = None):
         self.by_rgb = by_rgb
+        self.yaw_by_rgb = yaw_by_rgb or {}
+
+    def _rgb(self, image_bgr):
+        b, g, r = (int(x) for x in image_bgr[0, 0])
+        return r, g, b
 
     def embed(self, image_bgr: np.ndarray) -> np.ndarray | None:
+        return self.by_rgb.get(self._rgb(image_bgr))
+
+    def analyze(self, image_bgr: np.ndarray):
+        rgb = self._rgb(image_bgr)
+        emb = self.by_rgb.get(rgb)
+        h, w = image_bgr.shape[:2]
+        return None if emb is None else (emb, self.yaw_by_rgb.get(rgb, 0.0), np.array([0, 0, w, h], dtype=np.float32))
+
+class FakeAntiSpoof:
+    """Toda foto é "real", exceto as da cor em `fake`."""
+    def __init__(self, fake: set[tuple[int, int, int]] | None = None):
+        self.fake = fake or set()
+
+    def real_score(self, image_bgr: np.ndarray, bbox) -> float:
         b, g, r = (int(x) for x in image_bgr[0, 0])
-        return self.by_rgb.get((r, g, b))
+        return 0.02 if (r, g, b) in self.fake else 0.98
 
 class InMemoryFaceRepository:
     def __init__(self):
@@ -45,6 +65,10 @@ class InMemoryFaceRepository:
         self.rows.pop(aluno_id, None)
 
 RED, GREEN, BLUE = (255, 0, 0), (0, 255, 0), (0, 0, 255)
+# Mesmo vetor do RED, mas "virado": simula a segunda foto do desafio.
+RED_TURNED = (254, 0, 0)
+# Mesmo rosto do RED, de frente, mas o anti-spoofing diz que é reprodução (papel/tela).
+RED_PRINTED = (253, 0, 0)
 
 @pytest.fixture
 def repo():
@@ -52,8 +76,9 @@ def repo():
 
 @pytest.fixture
 def client(repo):
-    embedder = FakeEmbedder({RED: vec(0), GREEN: vec(1), BLUE: None})
-    return TestClient(create_app(embedder, repo, KEY))
+    embedder = FakeEmbedder({RED: vec(0), RED_TURNED: vec(0), RED_PRINTED: vec(0), GREEN: vec(1), BLUE: None},
+                            {RED_TURNED: 0.45})
+    return TestClient(create_app(embedder, repo, KEY, FakeAntiSpoof({RED_PRINTED})))
 
 @pytest.fixture
 def auth():

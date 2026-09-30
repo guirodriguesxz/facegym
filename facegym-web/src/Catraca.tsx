@@ -11,10 +11,11 @@ export type EstadoCatraca =
 const LUZ = { ok: 'bg-sinal-ok shadow-[0_0_18px_4px] shadow-sinal-ok/70', erro: 'bg-sinal-erro shadow-[0_0_18px_4px] shadow-sinal-erro/70', aviso: 'bg-sinal-aviso shadow-[0_0_18px_4px] shadow-sinal-aviso/60', apagada: 'bg-grafite-claro' }
 
 /** Terminal de reconhecimento facial preso na catraca: tela, barra de luz e braço. */
-export function Catraca({ estado, tela, onCpf }: {
+export function Catraca({ estado, tela, onCpf, pedePin }: {
   estado: EstadoCatraca
   tela: ReactNode
-  onCpf: (cpf: string) => void
+  onCpf: (cpf: string, pin?: string) => void
+  pedePin?: boolean
 }) {
   const d = estado.fase === 'resposta' ? descrever(estado.resposta) : null
   const luz = d ? d.tom : estado.fase === 'erro' ? 'erro' : estado.fase === 'iniciando' ? 'aviso' : 'apagada'
@@ -36,7 +37,7 @@ export function Catraca({ estado, tela, onCpf }: {
             {estado.fase !== 'iniciando' && <GuiaDoRosto />}
             {estado.fase === 'lendo' && <span className="linha-leitura pointer-events-none absolute inset-x-8 h-0.5 bg-sinal-ok/90 shadow-[0_0_12px_2px] shadow-sinal-ok" />}
           </div>
-          <Visor estado={estado} onCpf={onCpf} />
+          <Visor estado={estado} onCpf={onCpf} pedePin={!!pedePin} />
         </div>
 
         <div className={`mx-auto mt-4 h-1.5 w-2/3 rounded-full transition-colors duration-300 ${LUZ[luz]}`} role="presentation" />
@@ -69,7 +70,7 @@ function GuiaDoRosto() {
   )
 }
 
-function Visor({ estado, onCpf }: { estado: EstadoCatraca; onCpf: (cpf: string) => void }) {
+function Visor({ estado, onCpf, pedePin }: { estado: EstadoCatraca; onCpf: (cpf: string, pin?: string) => void; pedePin: boolean }) {
   if (estado.fase === 'iniciando') {
     return <Mensagem titulo="Iniciando o terminal" detalhe="O servidor gratuito estava dormindo. Leva até 1 minuto." cor="text-sinal-aviso" />
   }
@@ -82,7 +83,9 @@ function Visor({ estado, onCpf }: { estado: EstadoCatraca; onCpf: (cpf: string) 
   return (
     <div>
       <Mensagem titulo={d.titulo} detalhe={d.tom === 'ok' ? 'Pode passar.' : d.detalhe} cor={cor} />
-      {d.pedeCpf && <Teclado key={estado.resposta.token ?? estado.resposta.status} onCpf={onCpf} />}
+      {/* confirmação de rosto (token) não pede PIN: o rosto já passou pela prova de vida */}
+      {d.pedeCpf && <Teclado key={estado.resposta.token ?? estado.resposta.status} onCpf={onCpf}
+        pedePin={pedePin && !estado.resposta.token} />}
     </div>
   )
 }
@@ -96,23 +99,34 @@ function Mensagem({ titulo, detalhe, cor = 'text-slate-100' }: { titulo: string;
   )
 }
 
-function Teclado({ onCpf }: { onCpf: (cpf: string) => void }) {
+function Teclado({ onCpf, pedePin }: { onCpf: (cpf: string, pin?: string) => void; pedePin: boolean }) {
   const [digitos, setDigitos] = useState('')
+  const [cpf, setCpf] = useState<string | null>(null) // preenchido: agora digitando o PIN
   const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'apagar', '0', 'ok']
+  const max = cpf ? 6 : 11
+  const pronto = cpf ? digitos.length >= 4 : digitos.length === 11
   function tocar(t: string) {
     if (t === 'apagar') setDigitos((d) => d.slice(0, -1))
-    else if (t === 'ok') { if (digitos.length === 11) onCpf(digitos) }
-    else setDigitos((d) => (d.length < 11 ? d + t : d))
+    else if (t === 'ok') {
+      if (!pronto) return
+      if (cpf) onCpf(cpf, digitos)
+      else if (pedePin) { setCpf(digitos); setDigitos('') }
+      else onCpf(digitos)
+    }
+    else setDigitos((d) => (d.length < max ? d + t : d))
   }
   return (
     <div className="px-4 pb-4">
-      <output className="mb-2 block rounded-md bg-black/60 py-1.5 text-center font-visor text-xl tracking-wider tabular-nums text-slate-100" aria-label="CPF digitado">
-        {formatarCpf(digitos) || <span className="text-slate-600">000.000.000-00</span>}
+      <output className="mb-2 block rounded-md bg-black/60 py-1.5 text-center font-visor text-xl tracking-wider tabular-nums text-slate-100"
+        aria-label={cpf ? 'PIN digitado' : 'CPF digitado'}>
+        {cpf
+          ? ('•'.repeat(digitos.length) || <span className="text-slate-600">Digite seu PIN</span>)
+          : (formatarCpf(digitos) || <span className="text-slate-600">000.000.000-00</span>)}
       </output>
       <div className="grid grid-cols-3 gap-1.5">
         {teclas.map((t) => (
-          <button key={t} type="button" onClick={() => tocar(t)} disabled={t === 'ok' && digitos.length !== 11}
-            aria-label={t === 'apagar' ? 'Apagar dígito' : t === 'ok' ? 'Confirmar CPF' : undefined}
+          <button key={t} type="button" onClick={() => tocar(t)} disabled={t === 'ok' && !pronto}
+            aria-label={t === 'apagar' ? 'Apagar dígito' : t === 'ok' ? (cpf ? 'Confirmar PIN' : 'Confirmar CPF') : undefined}
             className={`rounded-md py-2 font-visor text-lg font-semibold focus-visible:outline-2 focus-visible:outline-white disabled:opacity-30 ${
               t === 'ok' ? 'bg-sinal-ok text-tela' : 'bg-grafite-claro text-slate-100 active:bg-slate-600'}`}>
             {t === 'apagar' ? '⌫' : t === 'ok' ? 'OK' : t}

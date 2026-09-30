@@ -42,6 +42,7 @@ class FluxoCompletoIT {
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
         r.add("facegym.biometria.url", bio::baseUrl);
+        r.add("facegym.biometria.chave", () -> "chave-interna-0123456789");
         r.add("facegym.admin.senha", () -> "admin12345");
     }
 
@@ -92,11 +93,32 @@ class FluxoCompletoIT {
         mvc.perform(multipart(HttpMethod.PUT, "/api/v1/alunos/" + aluno + "/biometria").file(foto).header("Authorization", auth))
                 .andExpect(status().isNoContent());
 
+        // foto única de aluno real: barrada por falta de prova de vida
         bio.stubFor(WireMock.post("/faces/identify").willReturn(WireMock.okJson("{\"alunoId\":\"" + aluno + "\",\"score\":0.7}")));
         mvc.perform(multipart("/api/v1/check-ins").file(foto))
+                .andExpect(jsonPath("$.status").value("NAO_RECONHECIDO"));
+
+        bio.stubFor(WireMock.post("/faces/identify-live")
+                .willReturn(WireMock.okJson("{\"alunoId\":\"" + aluno + "\",\"score\":0.7,\"vivo\":true}")));
+        // prova de vida ok, mas fora de totem registrado: aluno real não é alcançável
+        mvc.perform(multipart("/api/v1/check-ins").file(foto).file(virado()).param("desafio", desafio()))
+                .andExpect(jsonPath("$.status").value("NAO_RECONHECIDO"));
+
+        String totemBody = mvc.perform(post("/api/v1/totens").header("Authorization", auth).contentType("application/json")
+                .content("{\"nome\":\"Entrada\"}")).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String totem = com.jayway.jsonpath.JsonPath.read(totemBody, "$.token");
+        mvc.perform(multipart("/api/v1/check-ins").file(foto).file(virado()).param("desafio", desafio()).header("X-Totem-Token", totem))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("LIBERADO"))
                 .andExpect(jsonPath("$.nome").value("Ana"));
+
+        // por CPF: exige PIN
+        mvc.perform(put("/api/v1/alunos/" + aluno + "/pin").header("Authorization", auth).contentType("application/json")
+                .content("{\"pin\":\"4821\"}")).andExpect(status().isNoContent());
+        mvc.perform(post("/api/v1/check-ins/cpf").header("X-Totem-Token", totem).contentType("application/json")
+                .content("{\"cpf\":\"52998224725\",\"pin\":\"0000\"}")).andExpect(jsonPath("$.status").value("NAO_RECONHECIDO"));
+        mvc.perform(post("/api/v1/check-ins/cpf").header("X-Totem-Token", totem).contentType("application/json")
+                .content("{\"cpf\":\"52998224725\",\"pin\":\"4821\"}")).andExpect(jsonPath("$.status").value("LIBERADO"));
 
         mvc.perform(get("/api/v1/acessos").header("Authorization", auth))
                 // outros testes gravam acessos no mesmo instante (relógio fixo): filtra pelo aluno
@@ -139,19 +161,33 @@ class FluxoCompletoIT {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String id = id(body);
 
-        bio.stubFor(WireMock.post("/faces/identify").willReturn(WireMock.okJson("{\"alunoId\":\"" + id + "\",\"score\":0.9}")));
-        mvc.perform(multipart("/api/v1/check-ins").file(selfie))
+        bio.stubFor(WireMock.post("/faces/identify-live")
+                .willReturn(WireMock.okJson("{\"alunoId\":\"" + id + "\",\"score\":0.9,\"vivo\":true}")));
+        mvc.perform(multipart("/api/v1/check-ins").file(selfie).file(virado()).param("desafio", desafio()))
                 .andExpect(jsonPath("$.status").value("LIBERADO"))
                 .andExpect(jsonPath("$.nome").value(org.hamcrest.Matchers.startsWith("Visitante ")));
 
         bio.stubFor(WireMock.delete(WireMock.urlMatching("/faces/.*")).willReturn(WireMock.noContent()));
-        mvc.perform(delete("/api/v1/demo/visitantes/" + id)).andExpect(status().isNoContent());
-        mvc.perform(multipart("/api/v1/check-ins").file(selfie)).andExpect(jsonPath("$.status").value("NAO_RECONHECIDO"));
+        mvc.perform(delete("/api/v1/demo/visitantes/" + id)).andExpect(status().isNotFound());
+        String segredo = com.jayway.jsonpath.JsonPath.read(body, "$.segredo");
+        mvc.perform(delete("/api/v1/demo/visitantes/" + id).header("X-Visitante-Segredo", segredo)).andExpect(status().isNoContent());
+        bio.stubFor(WireMock.post("/faces/identify-live").willReturn(WireMock.okJson("{\"alunoId\":null,\"score\":null,\"vivo\":true}")));
+        mvc.perform(multipart("/api/v1/check-ins").file(selfie).file(virado()).param("desafio", desafio())).andExpect(jsonPath("$.status").value("NAO_RECONHECIDO"));
     }
 
     @Test
     void visitanteSemConsentimentoE409() throws Exception {
         mvc.perform(multipart("/api/v1/demo/visitantes").file(new MockMultipartFile("foto", "s.jpg", "image/jpeg", new byte[]{5})))
                 .andExpect(status().isConflict());
+    }
+
+    private static MockMultipartFile virado() {
+        return new MockMultipartFile("virado", "v.jpg", "image/jpeg", new byte[]{9});
+    }
+
+    private String desafio() throws Exception {
+        String body = mvc.perform(post("/api/v1/check-ins/desafio")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.id");
     }
 }

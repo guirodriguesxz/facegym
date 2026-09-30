@@ -9,6 +9,10 @@ describe('descrever', () => {
     expect(descrever({ status: 'NEGADO', nome: 'Bruno', motivo: 'Plano vencido ou inexistente' }))
       .toEqual({ titulo: 'Acesso negado, Bruno', detalhe: 'Plano vencido ou inexistente', tom: 'erro', pedeCpf: false })
   })
+  it('check-in só por CPF chega sem nome', () => {
+    expect(descrever({ status: 'LIBERADO' }).titulo).toBe('Bem-vinda(o)!')
+    expect(descrever({ status: 'NEGADO', motivo: 'Procure a recepção' }).titulo).toBe('Acesso negado')
+  })
   it('dúvida, não reconhecido e biometria fora pedem CPF', () => {
     for (const status of ['CONFIRMAR_CPF', 'NAO_RECONHECIDO', 'BIOMETRIA_INDISPONIVEL'] as const) {
       expect(descrever({ status }).pedeCpf).toBe(true)

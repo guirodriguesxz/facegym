@@ -1,5 +1,6 @@
 package com.facegym.adapters.biometria;
 
+import com.facegym.application.port.DesafiosDeVida;
 import com.facegym.application.port.Identificacao;
 import com.facegym.application.port.ReconhecimentoFacial;
 import com.facegym.application.port.ReconhecimentoIndisponivel;
@@ -28,7 +29,7 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
 
     private static final Logger log = LoggerFactory.getLogger(BiometriaHttpClient.class);
 
-    private record IdentifyResponse(UUID alunoId, Double score) {}
+    private record IdentifyResponse(UUID alunoId, Double score, Boolean vivo) {}
 
     private static final Duration INTERVALO_AQUECIMENTO = Duration.ofSeconds(60);
 
@@ -111,6 +112,18 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     }
 
     @Override
+    public Identificacao identificarComProvaDeVida(byte[] frente, byte[] virado, DesafiosDeVida.Direcao direcao) {
+        return protegido(() -> {
+            var parts = multipart(frente);
+            parts.add("turned", new ByteArrayResource(virado) {
+                @Override public String getFilename() { return "virado.jpg"; }
+            });
+            parts.add("direction", direcao.name());
+            return enviar("/faces/identify-live", parts);
+        });
+    }
+
+    @Override
     public Identificacao compararDemo(byte[] foto) {
         return protegido(() -> post("/faces/compare-demo", foto));
     }
@@ -136,10 +149,15 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     }
 
     private Identificacao post(String rota, byte[] foto) {
+        return enviar(rota, multipart(foto));
+    }
+
+    private Identificacao enviar(String rota, LinkedMultiValueMap<String, Object> parts) {
         IdentifyResponse r = http.post().uri(rota).contentType(MediaType.MULTIPART_FORM_DATA)
-                .body(multipart(foto)).retrieve().onStatus(BiometriaHttpClient::fotoInvalida, BiometriaHttpClient::lancarFotoInvalida)
+                .body(parts).retrieve().onStatus(BiometriaHttpClient::fotoInvalida, BiometriaHttpClient::lancarFotoInvalida)
                 .body(IdentifyResponse.class);
-        return r == null ? Identificacao.ninguem() : new Identificacao(r.alunoId(), r.score());
+        return r == null ? Identificacao.ninguem()
+                : new Identificacao(r.alunoId(), r.score(), Boolean.TRUE.equals(r.vivo()));
     }
 
     private <T> T protegido(Supplier<T> chamada) {

@@ -3,6 +3,8 @@ package com.facegym.application;
 import com.facegym.adapters.memoria.CheckInsPendentesEmMemoria;
 import com.facegym.application.port.*;
 import com.facegym.domain.*;
+import com.facegym.domain.vivacidade.LadoDesafio;
+import com.facegym.domain.vivacidade.LimiaresDeVivacidade;
 
 import java.time.*;
 import java.util.*;
@@ -20,6 +22,15 @@ public class Fakes {
             return proxima;
         }
         public Identificacao compararDemo(byte[] foto) { return identificar(foto); }
+
+        public IdentificacaoComVivacidade proximaComVivacidade = new IdentificacaoComVivacidade(null, null, null, null, null);
+        public int chamadasComVivacidade = 0;
+
+        public IdentificacaoComVivacidade identificarComVivacidade(byte[] frente, byte[] virada) {
+            if (fora) throw new ReconhecimentoIndisponivel("fora do ar", null);
+            chamadasComVivacidade++;
+            return proximaComVivacidade;
+        }
         public void cadastrar(UUID id, byte[] foto) {
             if (fora) throw new ReconhecimentoIndisponivel("fora do ar", null);
             cadastrados.put(id, foto);
@@ -72,6 +83,22 @@ public class Fakes {
         }
     }
 
+    public static class DesafiosFake implements DesafiosDeVivacidade {
+        public LadoDesafio proximoLado = LadoDesafio.ESQUERDA;
+        private final Map<String, Map.Entry<LadoDesafio, Instant>> dados = new HashMap<>();
+        private int seq = 0;
+        public Desafio criar(Instant expiraEm) {
+            String token = "desafio-" + (++seq);
+            dados.put(token, Map.entry(proximoLado, expiraEm));
+            return new Desafio(token, proximoLado);
+        }
+        public Optional<LadoDesafio> consumir(String token, Instant agora) {
+            var e = token == null ? null : dados.remove(token);
+            if (e == null || agora.isAfter(e.getValue())) return Optional.empty();
+            return Optional.of(e.getKey());
+        }
+    }
+
     public static class RelogioFake implements Relogio {
         public Instant agora;
         public RelogioFake(LocalDateTime local) { set(local); }
@@ -104,17 +131,26 @@ public class Fakes {
     public final RelogioFake relogio = new RelogioFake(LocalDate.of(2026, 10, 5).atTime(8, 0)); // segunda 08:00
 
     public final VisitantesFake visitantes = new VisitantesFake();
+    public final DesafiosFake desafios = new DesafiosFake();
 
     {
         alunos.aoRemover = visitantes.dados::remove; // cascata do banco
     }
 
+    public static final LimiaresDeVivacidade LIMIARES_VIVACIDADE = new LimiaresDeVivacidade(0.15, 0.25, 0.30);
+
+    /** Modo opcional: os testes antigos usam foto única. */
     public RealizarCheckIn checkIn() {
         return checkIn(Duration.ZERO);
     }
 
     public RealizarCheckIn checkIn(Duration antipassback) {
-        return new RealizarCheckIn(reconhecimento, alunos, planos, matriculas, acessos, pendentes, relogio,
-                new Limiares(0.41, 0.18), antipassback);
+        return checkIn(antipassback, false);
+    }
+
+    public RealizarCheckIn checkIn(Duration antipassback, boolean vivacidadeObrigatoria) {
+        return new RealizarCheckIn(reconhecimento, alunos, planos, matriculas, acessos, pendentes, desafios, relogio,
+                new Limiares(0.41, 0.18), antipassback,
+                new ConfiguracaoDeVivacidade(vivacidadeObrigatoria, LIMIARES_VIVACIDADE));
     }
 }

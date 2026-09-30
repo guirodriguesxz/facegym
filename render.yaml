@@ -31,6 +31,8 @@ services:
         value: 8s  # inferência na CPU do plano free leva ~2 s
       - key: BIOMETRIA_KEY
         fromService: { type: web, name: facegym-biometria, envVarKey: INTERNAL_KEY }
+      - key: VIVACIDADE
+        value: opcional  # alunos fictícios da demo usam foto única
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_EMAIL

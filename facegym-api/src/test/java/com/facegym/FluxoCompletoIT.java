@@ -43,6 +43,7 @@ class FluxoCompletoIT {
     static void props(DynamicPropertyRegistry r) {
         r.add("facegym.biometria.url", bio::baseUrl);
         r.add("facegym.admin.senha", () -> "admin12345");
+        r.add("facegym.vivacidade.modo", () -> "opcional");
     }
 
     @TestConfiguration
@@ -153,5 +154,44 @@ class FluxoCompletoIT {
     void visitanteSemConsentimentoE409() throws Exception {
         mvc.perform(multipart("/api/v1/demo/visitantes").file(new MockMultipartFile("foto", "s.jpg", "image/jpeg", new byte[]{5})))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void desafioDeVivacidadeDePontaAPonta() throws Exception {
+        String auth = token();
+        String plano = id(mvc.perform(post("/api/v1/planos").header("Authorization", auth).contentType("application/json")
+                        .content("{\"nome\":\"Livre\",\"preco\":99.9,\"dias\":[\"MONDAY\"],\"inicio\":\"06:00\",\"fim\":\"22:00\",\"acessosPorSemana\":null}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        String aluno = id(mvc.perform(post("/api/v1/alunos").header("Authorization", auth).contentType("application/json")
+                        .content("{\"nome\":\"Bia\",\"cpf\":\"390.533.447-05\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mvc.perform(post("/api/v1/matriculas").header("Authorization", auth).contentType("application/json")
+                        .content("{\"alunoId\":\"" + aluno + "\",\"planoId\":\"" + plano + "\",\"inicio\":\"2026-10-01\",\"vencimento\":\"2026-10-31\"}"))
+                .andExpect(status().isCreated());
+
+        String desafio = mvc.perform(post("/api/v1/check-ins/desafios"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.lado").isString())
+                .andReturn().getResponse().getContentAsString();
+        String tokenDesafio = desafio.replaceAll(".*\"token\":\"([^\"]+)\".*", "$1");
+        boolean esquerda = desafio.contains("ESQUERDA");
+
+        bio.stubFor(WireMock.post("/faces/identify-liveness").willReturn(WireMock.okJson(
+                "{\"alunoId\":\"" + aluno + "\",\"score\":0.7,\"giroFrente\":0.0,\"giroVirada\":" + (esquerda ? "0.4" : "-0.4")
+                        + ",\"similaridade\":0.8}")));
+        var frente = new MockMultipartFile("foto", "f.jpg", "image/jpeg", new byte[]{1});
+        var virada = new MockMultipartFile("fotoVirada", "v.jpg", "image/jpeg", new byte[]{2});
+        mvc.perform(multipart("/api/v1/check-ins").file(frente).file(virada).param("desafio", tokenDesafio))
+                .andExpect(jsonPath("$.status").value("LIBERADO"))
+                .andExpect(jsonPath("$.nome").value("Bia"))
+                .andExpect(jsonPath("$.vivacidade").value(true));
+
+        // mesmo token de novo: reprovado, sem nome na resposta
+        mvc.perform(multipart("/api/v1/check-ins").file(frente).file(virada).param("desafio", tokenDesafio))
+                .andExpect(jsonPath("$.status").value("PROVA_DE_VIDA_REPROVADA"))
+                .andExpect(jsonPath("$.motivo").value("Desafio expirado, tente de novo"))
+                .andExpect(jsonPath("$.nome").doesNotExist());
+
+        mvc.perform(get("/api/v1/acessos").header("Authorization", auth))
+                .andExpect(jsonPath("$[?(@.alunoId == '" + aluno + "')].vivacidade").value(org.hamcrest.Matchers.hasItem(true)));
     }
 }

@@ -1,6 +1,7 @@
 package com.facegym.adapters.biometria;
 
 import com.facegym.application.port.Identificacao;
+import com.facegym.application.port.IdentificacaoComVivacidade;
 import com.facegym.application.port.ReconhecimentoFacial;
 import com.facegym.application.port.ReconhecimentoIndisponivel;
 import com.facegym.application.port.RostoNaoEncontrado;
@@ -29,6 +30,7 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     private static final Logger log = LoggerFactory.getLogger(BiometriaHttpClient.class);
 
     private record IdentifyResponse(UUID alunoId, Double score) {}
+    private record LivenessResponse(UUID alunoId, Double score, Double giroFrente, Double giroVirada, Double similaridade) {}
 
     private static final Duration INTERVALO_AQUECIMENTO = Duration.ofSeconds(60);
 
@@ -113,6 +115,21 @@ public class BiometriaHttpClient implements ReconhecimentoFacial {
     @Override
     public Identificacao compararDemo(byte[] foto) {
         return protegido(() -> post("/faces/compare-demo", foto));
+    }
+
+    @Override
+    public IdentificacaoComVivacidade identificarComVivacidade(byte[] frente, byte[] virada) {
+        return protegido(() -> {
+            var parts = multipart(frente);
+            parts.add("turned", new ByteArrayResource(virada) {
+                @Override public String getFilename() { return "virada.jpg"; }
+            });
+            LivenessResponse r = http.post().uri("/faces/identify-liveness").contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(parts).retrieve().onStatus(BiometriaHttpClient::fotoInvalida, BiometriaHttpClient::lancarFotoInvalida)
+                    .body(LivenessResponse.class);
+            return r == null ? new IdentificacaoComVivacidade(null, null, null, null, null)
+                    : new IdentificacaoComVivacidade(r.alunoId(), r.score(), r.giroFrente(), r.giroVirada(), r.similaridade());
+        });
     }
 
     @Override

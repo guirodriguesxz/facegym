@@ -1,6 +1,8 @@
 package com.facegym.adapters.biometria;
 
 import com.facegym.application.port.Identificacao;
+import com.facegym.application.port.IdentificacaoComVivacidade;
+import com.facegym.domain.vivacidade.MedidasDeVivacidade;
 import com.facegym.application.port.ReconhecimentoIndisponivel;
 import com.facegym.application.port.RostoNaoEncontrado;
 import com.github.tomakehurst.wiremock.http.Fault;
@@ -155,5 +157,32 @@ class BiometriaHttpClientTest {
         var comBarra = new BiometriaHttpClient(props, CircuitBreakerRegistry.ofDefaults());
         bio.stubFor(get("/health").willReturn(okJson("{\"status\":\"UP\"}")));
         assertThat(comBarra.pronta()).isTrue();
+    }
+
+    @Test
+    void identificaComVivacidadeEnviandoAsDuasFotos() {
+        UUID aluno = UUID.randomUUID();
+        bio.stubFor(post("/faces/identify-liveness").withHeader("X-Internal-Key", equalTo(CHAVE))
+                .withMultipartRequestBody(aMultipart().withName("image"))
+                .withMultipartRequestBody(aMultipart().withName("turned"))
+                .willReturn(okJson("{\"alunoId\":\"" + aluno + "\",\"score\":0.7,\"giroFrente\":0.01,\"giroVirada\":0.42,\"similaridade\":0.8}")));
+        var r = client.identificarComVivacidade(FOTO, FOTO);
+        assertThat(r).isEqualTo(new IdentificacaoComVivacidade(aluno, 0.7, 0.01, 0.42, 0.8));
+        assertThat(r.medidas()).contains(new MedidasDeVivacidade(0.01, 0.42, 0.8));
+    }
+
+    @Test
+    void semRostoNumaDasFotosNaoTemMedidas() {
+        bio.stubFor(post("/faces/identify-liveness").willReturn(okJson(
+                "{\"alunoId\":null,\"score\":null,\"giroFrente\":null,\"giroVirada\":null,\"similaridade\":null}")));
+        var r = client.identificarComVivacidade(FOTO, FOTO);
+        assertThat(r.medidas()).isEmpty();
+        assertThat(r.identificacao().encontrou()).isFalse();
+    }
+
+    @Test
+    void vivacidadeComBiometriaForaFicaIndisponivel() {
+        bio.stubFor(post("/faces/identify-liveness").willReturn(serverError()));
+        assertThatThrownBy(() -> client.identificarComVivacidade(FOTO, FOTO)).isInstanceOf(ReconhecimentoIndisponivel.class);
     }
 }

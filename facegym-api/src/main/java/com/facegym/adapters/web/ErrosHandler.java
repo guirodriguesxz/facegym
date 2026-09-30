@@ -11,6 +11,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import com.facegym.adapters.memoria.MuitosDesafios;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
@@ -51,6 +52,9 @@ public class ErrosHandler {
     ResponseEntity<Map<String, String>> indisponivel(ReconhecimentoIndisponivel e) {
         return erro(HttpStatus.SERVICE_UNAVAILABLE, "Reconhecimento facial indisponível, tente em instantes");
     }
+
+    @ExceptionHandler(MuitosDesafios.class)
+    ResponseEntity<Map<String, String>> muitosDesafios(MuitosDesafios e) { return erro(HttpStatus.TOO_MANY_REQUESTS, e.getMessage()); }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<Map<String, String>> grande(MaxUploadSizeExceededException e) {

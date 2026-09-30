@@ -1,11 +1,13 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { instrucao, type Lado } from './desafio'
 import { descrever, formatarCpf, type RespostaCheckIn } from './resultado'
 
 export type EstadoCatraca =
   | { fase: 'iniciando' }
   | { fase: 'pronta' }
   | { fase: 'lendo' }
-  | { fase: 'resposta'; resposta: RespostaCheckIn }
+  | { fase: 'desafio'; lado: Lado }
+  | { fase: 'resposta'; resposta: RespostaCheckIn; demo?: boolean }
   | { fase: 'erro'; mensagem: string }
 
 const LUZ = { ok: 'bg-sinal-ok shadow-[0_0_18px_4px] shadow-sinal-ok/70', erro: 'bg-sinal-erro shadow-[0_0_18px_4px] shadow-sinal-erro/70', aviso: 'bg-sinal-aviso shadow-[0_0_18px_4px] shadow-sinal-aviso/60', apagada: 'bg-grafite-claro' }
@@ -16,7 +18,7 @@ export function Catraca({ estado, tela, onCpf }: {
   tela: ReactNode
   onCpf: (cpf: string) => void
 }) {
-  const d = estado.fase === 'resposta' ? descrever(estado.resposta) : null
+  const d = estado.fase === 'resposta' ? descrever(estado.resposta, estado.demo) : null
   const luz = d ? d.tom : estado.fase === 'erro' ? 'erro' : estado.fase === 'iniciando' ? 'aviso' : 'apagada'
   const liberado = estado.fase === 'resposta' && estado.resposta.status === 'LIBERADO'
 
@@ -75,13 +77,18 @@ function Visor({ estado, onCpf }: { estado: EstadoCatraca; onCpf: (cpf: string) 
   }
   if (estado.fase === 'pronta') return <Mensagem titulo="Olhe para a câmera" detalhe="Escolha quem vai passar pela catraca." />
   if (estado.fase === 'lendo') return <Mensagem titulo="Identificando…" detalhe="Mantenha o rosto dentro da marcação." />
+  if (estado.fase === 'desafio') {
+    const i = instrucao(estado.lado)
+    return <Mensagem titulo={`${i.texto} ${i.seta}`} detalhe="Segure até a foto." cor="text-sinal-aviso" />
+  }
   if (estado.fase === 'erro') return <Mensagem titulo="Sem conexão" detalhe={estado.mensagem} cor="text-sinal-erro" />
 
-  const d = descrever(estado.resposta)
+  const d = descrever(estado.resposta, estado.demo)
   const cor = d.tom === 'ok' ? 'text-sinal-ok' : d.tom === 'erro' ? 'text-sinal-erro' : 'text-sinal-aviso'
   return (
     <div>
       <Mensagem titulo={d.titulo} detalhe={d.tom === 'ok' ? 'Pode passar.' : d.detalhe} cor={cor} />
+      {d.selo && <p className="-mt-2 pb-3 text-center text-xs font-semibold text-slate-300">{d.selo}</p>}
       {d.pedeCpf && <Teclado key={estado.resposta.token ?? estado.resposta.status} onCpf={onCpf} />}
     </div>
   )

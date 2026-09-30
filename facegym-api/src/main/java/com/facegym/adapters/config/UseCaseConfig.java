@@ -3,6 +3,8 @@ package com.facegym.adapters.config;
 import com.facegym.adapters.biometria.BiometriaHttpClient;
 import com.facegym.adapters.biometria.BiometriaProperties;
 import com.facegym.adapters.memoria.CheckInsPendentesEmMemoria;
+import com.facegym.adapters.memoria.DesafiosDeVivacidadeEmMemoria;
+import com.facegym.domain.vivacidade.LimiaresDeVivacidade;
 import com.facegym.application.*;
 import com.facegym.application.port.*;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
@@ -52,11 +54,25 @@ public class UseCaseConfig {
 
     @Bean
     RealizarCheckIn realizarCheckIn(ReconhecimentoFacial r, Alunos a, Planos p, Matriculas m, RegistroDeAcessos ac,
-                                    CheckInsPendentes pend, Relogio rel,
+                                    CheckInsPendentes pend, DesafiosDeVivacidade desafios, Relogio rel,
                                     @Value("${facegym.limiares.aceite}") double aceite,
                                     @Value("${facegym.limiares.duvida}") double duvida,
-                                    @Value("${facegym.antipassback}") Duration antipassback) {
-        return new RealizarCheckIn(r, a, p, m, ac, pend, rel, new Limiares(aceite, duvida), antipassback);
+                                    @Value("${facegym.antipassback}") Duration antipassback,
+                                    @Value("${facegym.vivacidade.modo}") String modo,
+                                    @Value("${facegym.vivacidade.frente}") double frente,
+                                    @Value("${facegym.vivacidade.virada}") double virada,
+                                    @Value("${facegym.vivacidade.mesma-pessoa}") double mesmaPessoa) {
+        boolean obrigatoria = switch (modo) {
+            case "obrigatoria" -> true;
+            case "opcional" -> false;
+            default -> throw new IllegalStateException("VIVACIDADE deve ser obrigatoria ou opcional, veio: " + modo);
+        };
+        return new RealizarCheckIn(r, a, p, m, ac, pend, desafios, rel, new Limiares(aceite, duvida), antipassback,
+                new ConfiguracaoDeVivacidade(obrigatoria, new LimiaresDeVivacidade(frente, virada, mesmaPessoa)));
+    }
+
+    @Bean
+    DesafiosDeVivacidade desafiosDeVivacidade() { return new DesafiosDeVivacidadeEmMemoria();
     }
 
     @Bean

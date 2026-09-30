@@ -10,7 +10,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 6MB
+      max-request-size: 11MB  # duas fotos de até 5 MB (vivacidade)
 
 server:
   port: ${PORT:8080}
@@ -21,6 +21,11 @@ facegym:
     aceite: ${LIMIAR_ACEITE:0.41}
     duvida: ${LIMIAR_DUVIDA:0.18}
   antipassback: ${ANTIPASSBACK:5m}  # 0 desliga
+  vivacidade:
+    modo: ${VIVACIDADE:obrigatoria}  # opcional: aceita foto única (demo com alunos fictícios)
+    frente: ${VIVACIDADE_FRENTE:0.15}
+    virada: ${VIVACIDADE_VIRADA:0.25}
+    mesma-pessoa: ${VIVACIDADE_MESMA_PESSOA:0.30}
   jwt-secret: ${JWT_SECRET:}
   admin:
     email: ${ADMIN_EMAIL:admin@facegym.dev}

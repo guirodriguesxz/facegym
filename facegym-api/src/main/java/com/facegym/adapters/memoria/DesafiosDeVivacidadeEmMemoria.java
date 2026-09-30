@@ -14,12 +14,19 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DesafiosDeVivacidadeEmMemoria implements DesafiosDeVivacidade {
     private record Entrada(LadoDesafio lado, Instant expiraEm) {}
 
+    private final int limite;
+
     private final Map<String, Entrada> dados = new ConcurrentHashMap<>();
     private final SecureRandom random = new SecureRandom();
 
+    public DesafiosDeVivacidadeEmMemoria() { this(10_000); }
+
+    DesafiosDeVivacidadeEmMemoria(int limite) { this.limite = limite; }
+
     @Override
     public Desafio criar(Instant expiraEm) {
-        dados.values().removeIf(e -> e.expiraEm().isBefore(Instant.now().minusSeconds(300)));
+        dados.values().removeIf(e -> e.expiraEm().isBefore(Instant.now()));
+        if (dados.size() >= limite) throw new MuitosDesafios();
         byte[] bytes = new byte[16];
         random.nextBytes(bytes);
         String token = HexFormat.of().formatHex(bytes);

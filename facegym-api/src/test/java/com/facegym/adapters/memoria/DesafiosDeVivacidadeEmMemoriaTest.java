@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class DesafiosDeVivacidadeEmMemoriaTest {
 
@@ -31,5 +32,20 @@ class DesafiosDeVivacidadeEmMemoriaTest {
         var lados = java.util.stream.IntStream.range(0, 64)
                 .mapToObj(i -> desafios.criar(agora.plusSeconds(30)).lado()).distinct().count();
         assertThat(lados).isEqualTo(2);
+    }
+
+    @Test
+    void recusaNovosDesafiosQuandoHaMuitosEmAberto() {
+        var pequeno = new DesafiosDeVivacidadeEmMemoria(3);
+        Instant daquiAPouco = Instant.now().plusSeconds(30);
+        for (int i = 0; i < 3; i++) pequeno.criar(daquiAPouco);
+        assertThatThrownBy(() -> pequeno.criar(daquiAPouco)).isInstanceOf(MuitosDesafios.class);
+    }
+
+    @Test
+    void desafiosJaExpiradosNaoOcupamLugar() {
+        var pequeno = new DesafiosDeVivacidadeEmMemoria(3);
+        for (int i = 0; i < 3; i++) pequeno.criar(Instant.now().minusSeconds(1));
+        pequeno.criar(Instant.now().plusSeconds(30)); // não lança
     }
 }

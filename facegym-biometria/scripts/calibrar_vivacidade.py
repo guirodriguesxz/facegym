@@ -11,8 +11,10 @@ from app.images import decode_image
 from app.liveness import giro
 
 def main(pasta: Path) -> None:
+    fotos = sorted(pasta.expanduser().glob("*.jpg"))
+    if not fotos:
+        sys.exit(f"Nenhuma foto .jpg em {pasta}")
     embedder = InsightFaceEmbedder()
-    fotos = sorted(pasta.glob("*.jpg"))
     rostos = {p.name: embedder.analyze(decode_image(p.read_bytes())) for p in fotos}
     referencia = next((r for n, r in rostos.items() if n.startswith("frente") and r is not None), None)
     print(f"{'foto':<24}{'giro':>8}{'similaridade':>14}")

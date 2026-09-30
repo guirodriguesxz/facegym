@@ -1,0 +1,33 @@
+# Atualizações de versão semanais. Os alertas de segurança continuam chegando na hora;
+# isto propõe versões novas antes do alerta, inclusive do Spring Boot, que é o que traz
+# Tomcat e Jackson corrigidos (dependências indiretas que o Dependabot não atualiza sozinho).
+# Minor e patch vêm num PR só por ecossistema; major vem separado, porque costuma exigir código.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /facegym-api
+    schedule: { interval: weekly, day: monday }
+    groups:
+      api-menores: { update-types: [minor, patch] }
+
+  - package-ecosystem: pip
+    directory: /facegym-biometria
+    schedule: { interval: weekly, day: monday }
+    groups:
+      biometria-menores: { update-types: [minor, patch] }
+
+  - package-ecosystem: npm
+    directory: /facegym-web
+    schedule: { interval: weekly, day: monday }
+    groups:
+      web-menores: { update-types: [minor, patch] }
+
+  - package-ecosystem: docker
+    directories: [/facegym-api, /facegym-biometria]
+    schedule: { interval: weekly, day: monday }
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    groups:
+      actions: { patterns: ["*"] }

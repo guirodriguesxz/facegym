@@ -21,4 +21,4 @@ jobs:
           cache: maven
       - uses: advanced-security/maven-dependency-submission-action@v6
         with:
-          directory: facegym-api
+          directory: ${{ github.workspace }}/facegym-api  # relativo, a action duplica o caminho

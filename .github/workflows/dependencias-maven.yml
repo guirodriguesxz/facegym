@@ -1,0 +1,24 @@
+# Envia a árvore completa do Maven (inclusive as dependências indiretas do Spring Boot) para o
+# grafo de dependências do GitHub, para o Dependabot alertar sobre elas também. Sem isto, o
+# GitHub só enxerga o que está declarado direto no pom.xml.
+name: dependencias-maven
+on:
+  push:
+    branches: [main]
+    paths: ["facegym-api/pom.xml", ".github/workflows/dependencias-maven.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write  # a API de envio do grafo exige escrita
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: advanced-security/maven-dependency-submission-action@v6
+        with:
+          directory: facegym-api

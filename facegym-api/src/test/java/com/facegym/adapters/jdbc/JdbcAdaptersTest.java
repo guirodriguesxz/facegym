@@ -82,6 +82,8 @@ class JdbcAdaptersTest {
         acessos.registrar(new Acesso(UUID.randomUUID(), t.plusSeconds(90), null, ResultadoAcesso.NEGADO, "Rosto não reconhecido", MeioIdentificacao.FACIAL, null));
 
         assertThat(acessos.liberadosDesde(a.id(), t)).isEqualTo(1);
+        assertThat(acessos.ultimoLiberado(a.id())).contains(t);
+        assertThat(acessos.ultimoLiberado(UUID.randomUUID())).isEmpty();
         assertThat(acessos.recentes(2)).extracting(Acesso::motivo).containsExactly("Rosto não reconhecido", "x");
     }
 

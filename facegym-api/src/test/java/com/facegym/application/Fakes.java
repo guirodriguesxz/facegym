@@ -63,6 +63,10 @@ public class Fakes {
             return dados.stream().filter(a -> alunoId.equals(a.alunoId()) && a.resultado() == ResultadoAcesso.LIBERADO
                     && !a.dataHora().isBefore(desde)).count();
         }
+        public Optional<Instant> ultimoLiberado(UUID alunoId) {
+            return dados.stream().filter(a -> alunoId.equals(a.alunoId()) && a.resultado() == ResultadoAcesso.LIBERADO)
+                    .map(Acesso::dataHora).max(Instant::compareTo);
+        }
         public List<Acesso> recentes(int limite) {
             return dados.reversed().stream().limit(limite).toList();
         }
@@ -106,7 +110,11 @@ public class Fakes {
     }
 
     public RealizarCheckIn checkIn() {
+        return checkIn(Duration.ZERO);
+    }
+
+    public RealizarCheckIn checkIn(Duration antipassback) {
         return new RealizarCheckIn(reconhecimento, alunos, planos, matriculas, acessos, pendentes, relogio,
-                new Limiares(0.41, 0.18));
+                new Limiares(0.41, 0.18), antipassback);
     }
 }

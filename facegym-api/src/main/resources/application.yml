@@ -20,6 +20,7 @@ facegym:
   limiares:
     aceite: ${LIMIAR_ACEITE:0.41}
     duvida: ${LIMIAR_DUVIDA:0.18}
+  antipassback: ${ANTIPASSBACK:5m}  # 0 desliga
   jwt-secret: ${JWT_SECRET:}
   admin:
     email: ${ADMIN_EMAIL:admin@facegym.dev}

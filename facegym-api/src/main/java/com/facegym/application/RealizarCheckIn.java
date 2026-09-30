@@ -21,10 +21,11 @@ public class RealizarCheckIn {
     private final CheckInsPendentes pendentes;
     private final Relogio relogio;
     private final Limiares limiares;
-    private final PoliticaDeAcesso politica = new PoliticaDeAcesso();
+    private final PoliticaDeAcesso politica;
 
     public RealizarCheckIn(ReconhecimentoFacial reconhecimento, Alunos alunos, Planos planos, Matriculas matriculas,
-                           RegistroDeAcessos acessos, CheckInsPendentes pendentes, Relogio relogio, Limiares limiares) {
+                           RegistroDeAcessos acessos, CheckInsPendentes pendentes, Relogio relogio, Limiares limiares,
+                           Duration antipassback) {
         this.reconhecimento = reconhecimento;
         this.alunos = alunos;
         this.planos = planos;
@@ -33,6 +34,7 @@ public class RealizarCheckIn {
         this.pendentes = pendentes;
         this.relogio = relogio;
         this.limiares = limiares;
+        this.politica = new PoliticaDeAcesso(antipassback);
     }
 
     public ResultadoCheckIn porFoto(byte[] foto) {
@@ -93,8 +95,11 @@ public class RealizarCheckIn {
         Optional<Plano> plano = matricula.flatMap(m -> planos.porId(m.planoId()));
         Instant inicioSemana = Semana.inicio(local.toLocalDate()).atStartOfDay(relogio.fuso()).toInstant();
         long liberados = acessos.liberadosDesde(aluno.id(), inicioSemana);
+        Optional<LocalDateTime> ultimaEntrada = acessos.ultimoLiberado(aluno.id())
+                .map(i -> LocalDateTime.ofInstant(i, relogio.fuso()));
 
-        Decisao decisao = politica.avaliar(new ContextoDeAcesso(aluno, matricula, plano, local, liberados));
+        Decisao decisao = politica.avaliar(
+                new ContextoDeAcesso(aluno, matricula, plano, local, liberados, ultimaEntrada));
         if (decisao instanceof Decisao.Nega nega) {
             registrar(aluno.id(), ResultadoAcesso.NEGADO, nega.motivo(), meio, score);
             return new Negado(aluno.nome(), nega.motivo());

@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.EnumSet;
@@ -135,5 +136,19 @@ class RealizarCheckInTest {
         f.reconhecimento.proxima = new Identificacao(ana.id(), 0.2);
         assertThat(checkIn.demo(FOTO)).isEmpty();
         assertThat(f.acessos.dados).isEmpty();
+    }
+
+    @Test
+    void antipassbackNegaSegundaEntradaDentroDoPrazoELiberaDepois() {
+        checkIn = f.checkIn(Duration.ofMinutes(5));
+        f.reconhecimento.proxima = new Identificacao(ana.id(), 0.62);
+        assertThat(checkIn.porFoto(FOTO)).isEqualTo(new Liberado("Ana"));
+
+        f.relogio.set(LocalDate.of(2026, 10, 5).atTime(8, 3));
+        assertThat(checkIn.porCpf(CPF_ANA)).isEqualTo(
+                new Negado("Ana", "Entrada já registrada às 08:00; nova entrada a partir das 08:05"));
+
+        f.relogio.set(LocalDate.of(2026, 10, 5).atTime(8, 5));
+        assertThat(checkIn.porFoto(FOTO)).isEqualTo(new Liberado("Ana"));
     }
 }

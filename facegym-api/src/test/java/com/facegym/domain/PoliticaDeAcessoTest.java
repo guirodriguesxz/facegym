@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -82,6 +83,41 @@ class PoliticaDeAcessoTest {
         aluno.bloquear("Falta de atestado");
         var semPlano = new ContextoDeAcesso(aluno, Optional.empty(), Optional.empty(), SEGUNDA.atTime(3, 0), 99);
         assertThat(politica.avaliar(semPlano)).isEqualTo(Decisao.nega("Aluno bloqueado: Falta de atestado"));
+    }
+
+    @Test
+    void antipassbackNegaNovaEntradaDentroDoPrazo() {
+        var comPrazo = new PoliticaDeAcesso(Duration.ofMinutes(5));
+        var c = new ContextoDeAcesso(aluno, Optional.of(matricula), Optional.of(manha), SEGUNDA.atTime(8, 4), 1,
+                Optional.of(SEGUNDA.atTime(8, 0)));
+        assertThat(comPrazo.avaliar(c))
+                .isEqualTo(Decisao.nega("Entrada já registrada às 08:00; nova entrada a partir das 08:05"));
+    }
+
+    @Test
+    void antipassbackLiberaQuandoOPrazoTermina() {
+        var comPrazo = new PoliticaDeAcesso(Duration.ofMinutes(5));
+        var c = new ContextoDeAcesso(aluno, Optional.of(matricula), Optional.of(manha), SEGUNDA.atTime(8, 5), 1,
+                Optional.of(SEGUNDA.atTime(8, 0)));
+        assertThat(comPrazo.avaliar(c)).isEqualTo(Decisao.libera());
+    }
+
+    @Test
+    void antipassbackSemEntradaAnteriorOuDesligadoLibera() {
+        var comPrazo = new PoliticaDeAcesso(Duration.ofMinutes(5));
+        assertThat(comPrazo.avaliar(ctx(SEGUNDA.atTime(8, 0), 0))).isEqualTo(Decisao.libera());
+        var c = new ContextoDeAcesso(aluno, Optional.of(matricula), Optional.of(manha), SEGUNDA.atTime(8, 1), 1,
+                Optional.of(SEGUNDA.atTime(8, 0)));
+        assertThat(politica.avaliar(c)).isEqualTo(Decisao.libera());
+    }
+
+    @Test
+    void antipassbackVemAntesDasRegrasDoPlano() {
+        var comPrazo = new PoliticaDeAcesso(Duration.ofMinutes(5));
+        var c = new ContextoDeAcesso(aluno, Optional.of(matricula), Optional.of(manha), SEGUNDA.atTime(8, 1), 3,
+                Optional.of(SEGUNDA.atTime(8, 0)));
+        assertThat(comPrazo.avaliar(c))
+                .isEqualTo(Decisao.nega("Entrada já registrada às 08:00; nova entrada a partir das 08:05"));
     }
 
     @Test

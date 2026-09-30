@@ -15,6 +15,7 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.time.Duration;
 import java.time.ZoneId;
 
 @Configuration
@@ -53,8 +54,9 @@ public class UseCaseConfig {
     RealizarCheckIn realizarCheckIn(ReconhecimentoFacial r, Alunos a, Planos p, Matriculas m, RegistroDeAcessos ac,
                                     CheckInsPendentes pend, Relogio rel,
                                     @Value("${facegym.limiares.aceite}") double aceite,
-                                    @Value("${facegym.limiares.duvida}") double duvida) {
-        return new RealizarCheckIn(r, a, p, m, ac, pend, rel, new Limiares(aceite, duvida));
+                                    @Value("${facegym.limiares.duvida}") double duvida,
+                                    @Value("${facegym.antipassback}") Duration antipassback) {
+        return new RealizarCheckIn(r, a, p, m, ac, pend, rel, new Limiares(aceite, duvida), antipassback);
     }
 
     @Bean

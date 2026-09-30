@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -37,6 +38,12 @@ public class AcessosJdbc implements RegistroDeAcessos {
     public long liberadosDesde(UUID alunoId, Instant desde) {
         return jdbc.sql("SELECT count(*) FROM acesso WHERE aluno_id = ? AND resultado = 'LIBERADO' AND data_hora >= ?")
                 .param(alunoId).param(Timestamp.from(desde)).query(Long.class).single();
+    }
+
+    @Override
+    public Optional<Instant> ultimoLiberado(UUID alunoId) {
+        return jdbc.sql("SELECT max(data_hora) FROM acesso WHERE aluno_id = ? AND resultado = 'LIBERADO'")
+                .param(alunoId).query(Timestamp.class).optional().map(Timestamp::toInstant);
     }
 
     @Override

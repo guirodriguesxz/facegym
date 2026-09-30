@@ -18,7 +18,8 @@ facegym-web (React)  ──►  facegym-api (Spring, hexagonal)  ──►  face
                               └  adapters: REST, JDBC, cliente HTTP  └
 ```
 
-- **Regras de acesso** em Java puro (`domain`): bloqueio, plano ativo, horário do plano, limite semanal.
+- **Regras de acesso** em Java puro (`domain`): bloqueio, antipassback (5 min entre entradas, `ANTIPASSBACK`),
+  plano ativo, horário do plano, limite semanal.
   ArchUnit quebra o build se o domínio importar Spring, JDBC ou HTTP.
 - **Resiliência**: timeout configurável (2 s local, 8 s em produção por causa da CPU do plano free), 1 retry só em erro de rede, circuit breaker (Resilience4j). Se a
   biometria cair, o totem pede o CPF, que passa pelas mesmas regras.
@@ -47,4 +48,4 @@ cd facegym-web && cp .env.example .env && npm i && npm run dev
 
 ## Próximos passos
 
-Antipassback, detecção de vivacidade, pagamentos, multi-tenant, app do aluno.
+Detecção de vivacidade, pagamentos, multi-tenant, app do aluno.

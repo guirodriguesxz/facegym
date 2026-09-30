@@ -15,7 +15,8 @@ LIVENESS_PATH = "/faces/identify-liveness"
 MAX_BODY_LIVENESS = 2 * MAX_BYTES + 512 * 1024
 
 def create_app(embedder: Embedder, repo: FaceRepository, internal_key: str) -> FastAPI:
-    app = FastAPI(title="FaceGym Biometria")
+    # Sem /docs, /redoc e /openapi.json: serviço interno, não há por que publicar as rotas.
+    app = FastAPI(title="FaceGym Biometria", docs_url=None, redoc_url=None, openapi_url=None)
 
     def key_ok(value: str) -> bool:
         return hmac.compare_digest(value.encode(), internal_key.encode())

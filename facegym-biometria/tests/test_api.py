@@ -163,3 +163,8 @@ def test_liveness_recusa_uma_foto_acima_de_5mb(client, auth):
     big = b"\x00" * (5 * 1024 * 1024 + 1)
     files = {"image": ("f.png", big, "image/png"), "turned": ("v.png", png(ORANGE), "image/png")}
     assert client.post("/faces/identify-liveness", files=files, headers=auth).status_code == 413
+
+def test_documentacao_da_api_nao_e_publicada(client):
+    # Serviço interno: só a API chama. Não precisa mostrar as rotas para quem passa.
+    for rota in ("/docs", "/redoc", "/openapi.json"):
+        assert client.get(rota).status_code == 404

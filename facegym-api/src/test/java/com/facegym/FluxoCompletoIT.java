@@ -194,4 +194,11 @@ class FluxoCompletoIT {
         mvc.perform(get("/api/v1/acessos").header("Authorization", auth))
                 .andExpect(jsonPath("$[?(@.alunoId == '" + aluno + "')].vivacidade").value(org.hamcrest.Matchers.hasItem(true)));
     }
+
+    @Test
+    void metricasDoPrometheusIncluemOCircuitBreakerDaBiometria() throws Exception {
+        mvc.perform(get("/actuator/prometheus"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("resilience4j_circuitbreaker_state")));
+    }
 }

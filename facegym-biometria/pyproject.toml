@@ -8,7 +8,7 @@ dependencies = [
   "python-multipart==0.0.32",
   "numpy==2.5.3",
   "pillow==12.3.0",
-  "insightface==0.7.3",
+  "insightface==2.0",
   "onnxruntime==1.30.0",
   "opencv-python-headless==5.0.0.93",
   "psycopg[binary]==3.3.6",

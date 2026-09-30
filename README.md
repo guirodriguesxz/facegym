@@ -25,8 +25,9 @@ facegym-web (React)  ──►  facegym-api (Spring, hexagonal)  ──►  face
   biometria cair, o totem pede o CPF, que passa pelas mesmas regras.
 - **Prova de vida** por desafio: o totem sorteia um lado, a pessoa vira o rosto e a biometria mede o giro
   (pelos 5 pontos do detector) e a similaridade entre as duas fotos; a `PoliticaDeVivacidade` decide.
-  Foto parada não vira e vídeo gravado não sabe o lado. `VIVACIDADE=obrigatoria` recusa foto única; a
-  demo usa `opcional` para os alunos fictícios, o que deixa a vivacidade burlável por quem envia foto única.
+  Foto parada não vira e vídeo gravado não sabe o lado. `VIVACIDADE=obrigatoria` recusa foto única.
+  A demo usa `opcional` e o totem manda só a foto de frente: o desafio fica implementado e testado,
+  mas desligado (para religar, o totem passa `comDesafio` à câmera).
 - **Limiares calibrados** no LFW (`facegym-biometria/CALIBRATION.md`): aceite 0.41, dúvida 0.18.
 
 ## Privacidade (LGPD)

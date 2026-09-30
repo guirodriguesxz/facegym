@@ -42,3 +42,13 @@ def test_decompression_bomb_is_invalid_image():
 def test_images_above_pixel_limit_are_rejected_before_full_decode():
     with pytest.raises(InvalidImage):
         decode_image(encode(Image.new("L", (8000, 6000)), "PNG"))  # 48 MP > 40 MP
+
+@pytest.mark.parametrize("fmt", ["BMP", "TIFF", "GIF", "TGA", "PPM"])
+def test_rejects_formats_other_than_jpeg_png_webp(fmt):
+    # Formatos exóticos concentram as falhas de memória do Pillow; foto de câmera não precisa deles.
+    with pytest.raises(InvalidImage):
+        decode_image(encode(Image.new("RGB", (8, 8), (255, 0, 0)), fmt))
+
+@pytest.mark.parametrize("fmt", ["JPEG", "PNG", "WEBP"])
+def test_accepts_camera_formats(fmt):
+    assert decode_image(encode(Image.new("RGB", (8, 8), (255, 0, 0)), fmt)).shape == (8, 8, 3)

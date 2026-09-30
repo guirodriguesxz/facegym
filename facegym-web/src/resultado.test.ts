@@ -15,6 +15,17 @@ describe('descrever', () => {
     }
     expect(descrever({ status: 'BIOMETRIA_INDISPONIVEL' }).titulo).toBe('Reconhecimento indisponível')
   })
+  it('liberado com prova de vida ganha selo', () => {
+    expect(descrever({ status: 'LIBERADO', nome: 'Ana', vivacidade: true }).selo).toBe('✓ Prova de vida')
+  })
+  it('aluno fictício liberado sem prova de vida ganha selo de demo; CPF não ganha selo', () => {
+    expect(descrever({ status: 'LIBERADO', nome: 'Ana' }, true).selo).toBe('Sem prova de vida (demo)')
+    expect(descrever({ status: 'LIBERADO', nome: 'Ana' }).selo).toBeUndefined()
+  })
+  it('prova de vida reprovada pede nova tentativa, sem nome e sem CPF', () => {
+    expect(descrever({ status: 'PROVA_DE_VIDA_REPROVADA', motivo: 'Prova de vida não confirmada' }))
+      .toEqual({ titulo: 'Não deu para confirmar', detalhe: 'Prova de vida não confirmada — tente de novo.', tom: 'aviso', pedeCpf: false })
+  })
 })
 
 describe('formatarCpf', () => {

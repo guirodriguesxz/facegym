@@ -1,16 +1,20 @@
 export type RespostaCheckIn = {
-  status: 'LIBERADO' | 'NEGADO' | 'CONFIRMAR_CPF' | 'NAO_RECONHECIDO' | 'BIOMETRIA_INDISPONIVEL'
+  status: 'LIBERADO' | 'NEGADO' | 'CONFIRMAR_CPF' | 'NAO_RECONHECIDO' | 'BIOMETRIA_INDISPONIVEL' | 'PROVA_DE_VIDA_REPROVADA'
   nome?: string
   motivo?: string
   token?: string
+  vivacidade?: boolean
 }
 
-export type Descricao = { titulo: string; detalhe?: string; tom: 'ok' | 'erro' | 'aviso'; pedeCpf: boolean }
+export type Descricao = { titulo: string; detalhe?: string; tom: 'ok' | 'erro' | 'aviso'; pedeCpf: boolean; selo?: string }
 
-export function descrever(r: RespostaCheckIn): Descricao {
+/** `demo`: check-in de aluno fictício, que usa foto única. */
+export function descrever(r: RespostaCheckIn, demo = false): Descricao {
   switch (r.status) {
-    case 'LIBERADO':
-      return { titulo: `Bem-vinda(o), ${r.nome}!`, tom: 'ok', pedeCpf: false }
+    case 'LIBERADO': {
+      const selo = r.vivacidade ? '✓ Prova de vida' : demo ? 'Sem prova de vida (demo)' : undefined
+      return { titulo: `Bem-vinda(o), ${r.nome}!`, tom: 'ok', pedeCpf: false, ...(selo && { selo }) }
+    }
     case 'NEGADO':
       return { titulo: `Acesso negado, ${r.nome}`, detalhe: r.motivo, tom: 'erro', pedeCpf: false }
     case 'CONFIRMAR_CPF':
@@ -19,6 +23,8 @@ export function descrever(r: RespostaCheckIn): Descricao {
       return { titulo: 'Rosto não reconhecido', detalhe: 'Entre com seu CPF.', tom: 'aviso', pedeCpf: true }
     case 'BIOMETRIA_INDISPONIVEL':
       return { titulo: 'Reconhecimento indisponível', detalhe: 'Entre com seu CPF.', tom: 'aviso', pedeCpf: true }
+    case 'PROVA_DE_VIDA_REPROVADA':
+      return { titulo: 'Não deu para confirmar', detalhe: `${r.motivo ?? 'Prova de vida não confirmada'} — tente de novo.`, tom: 'aviso', pedeCpf: false }
   }
 }
 

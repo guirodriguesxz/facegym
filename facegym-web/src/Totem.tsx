@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ApiError, apiForm, apiJson, fotoDeUrl } from './api'
 import { Camera } from './Camera'
 import { Catraca, type EstadoCatraca } from './Catraca'
+import type { Desafio, FotosComDesafio } from './desafio'
 import type { RespostaCheckIn } from './resultado'
 import { TesteComVoce, type Visitante } from './TesteComVoce'
 
@@ -34,23 +35,39 @@ export function Totem() {
     return () => { ativo = false; clearTimeout(espera) }
   }, [])
 
-  const ocupado = estado.fase === 'lendo' || estado.fase === 'iniciando'
+  const ocupado = estado.fase === 'lendo' || estado.fase === 'iniciando' || estado.fase === 'desafio'
 
-  async function executar(acao: () => Promise<RespostaCheckIn>) {
+  async function executar(acao: () => Promise<RespostaCheckIn>, demo = false) {
     setEstado({ fase: 'lendo' })
     try {
       const r = await acao()
       setToken(r.token)
-      setEstado({ fase: 'resposta', resposta: r })
+      setEstado({ fase: 'resposta', resposta: r, demo })
     } catch (e) {
       setEstado({ fase: 'erro', mensagem: e instanceof ApiError ? e.message : 'Erro inesperado' })
     }
   }
 
-  const checkInFoto = (blob: Blob) => executar(() => {
+  const checkInFoto = (blob: Blob, demo = false) => executar(() => {
     const form = new FormData(); form.append('foto', blob, 'foto.jpg')
     return apiForm<RespostaCheckIn>('/check-ins', form)
+  }, demo)
+
+  const checkInComDesafio = ({ frente, virada, desafio }: FotosComDesafio) => executar(() => {
+    const form = new FormData()
+    form.append('foto', frente, 'frente.jpg')
+    form.append('fotoVirada', virada, 'virada.jpg')
+    form.append('desafio', desafio.token)
+    return apiForm<RespostaCheckIn>('/check-ins', form)
   })
+
+  const comDesafio = {
+    pedir: () => apiJson<Desafio>('/check-ins/desafios', { method: 'POST' }),
+    onDesafio: (d: Desafio) => setEstado({ fase: 'desafio', lado: d.lado }),
+    onFotos: checkInComDesafio,
+    onErro: (e: unknown) => setEstado({ fase: 'erro', mensagem: e instanceof ApiError ? e.message : 'Erro inesperado' }),
+  }
+  const reprovado = estado.fase === 'resposta' && estado.resposta.status === 'PROVA_DE_VIDA_REPROVADA'
 
   const checkInCpf = (cpf: string) => executar(() =>
     token
@@ -67,11 +84,11 @@ export function Totem() {
     setVisitante(null)
     setCameraNaCatraca(false)
     setFoto(`/demo/${slug}.jpg`)
-    checkInFoto(await fotoDeUrl(`/demo/${slug}.jpg`))
+    checkInFoto(await fotoDeUrl(`/demo/${slug}.jpg`), true)
   }
 
   const tela = visitante || cameraNaCatraca
-    ? <Camera terminal rotulo="Fazer check-in" onFoto={checkInFoto} desabilitado={ocupado} />
+    ? <Camera terminal rotulo={reprovado ? 'Tentar de novo' : 'Fazer check-in'} comDesafio={comDesafio} desabilitado={ocupado} />
     : foto
       ? <img src={foto} alt="" className="h-full w-full object-cover" />
       : <div className="h-full w-full bg-[radial-gradient(circle_at_50%_40%,#1b2227,#070b0e_70%)]" />
@@ -89,7 +106,7 @@ export function Totem() {
               <h1 className="font-visor text-4xl font-bold">FaceGym</h1>
               <p className="mt-1 max-w-prose text-slate-600">
                 Simulação da catraca de uma academia com reconhecimento facial. A catraca confere plano, horário,
-                limite semanal e bloqueio antes de liberar.
+                limite semanal, bloqueio e, pela câmera, prova de vida antes de liberar.
               </p>
             </div>
             <Link to="/painel" className="text-sm font-medium text-slate-600 underline-offset-4 hover:text-grafite hover:underline">

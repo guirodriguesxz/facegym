@@ -5,7 +5,7 @@ import { Login } from './Login'
 
 type Aluno = { id: string; nome: string; cpf: string; bloqueado: boolean; motivoBloqueio: string | null; consentimentoBiometricoEm: string | null }
 type Plano = { id: string; nome: string; inicio: string; fim: string; dias: string[]; acessosPorSemana: number | null }
-type Acesso = { id: string; dataHora: string; alunoId: string | null; resultado: 'LIBERADO' | 'NEGADO'; motivo: string | null; meio: 'FACIAL' | 'CPF'; score: number | null }
+type Acesso = { id: string; dataHora: string; alunoId: string | null; resultado: 'LIBERADO' | 'NEGADO'; motivo: string | null; meio: 'FACIAL' | 'CPF'; score: number | null; vivacidade: boolean | null }
 
 export function Painel() {
   const [logado, setLogado] = useState(!!getToken())
@@ -59,7 +59,7 @@ export function Painel() {
         <div className="overflow-x-auto rounded-xl ring-1 ring-slate-800">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-900 text-slate-400">
-              <tr><th className="p-2">Quando</th><th className="p-2">Aluno</th><th className="p-2">Resultado</th><th className="p-2">Meio</th><th className="p-2">Score</th><th className="p-2">Motivo</th></tr>
+              <tr><th className="p-2">Quando</th><th className="p-2">Aluno</th><th className="p-2">Resultado</th><th className="p-2">Meio</th><th className="p-2">Score</th><th className="p-2">Prova de vida</th><th className="p-2">Motivo</th></tr>
             </thead>
             <tbody>
               {acessos.map((a) => (
@@ -69,6 +69,7 @@ export function Painel() {
                   <td className={`p-2 ${a.resultado === 'LIBERADO' ? 'text-emerald-400' : 'text-rose-300'}`}>{a.resultado}</td>
                   <td className="p-2">{a.meio}</td>
                   <td className="p-2 tabular-nums">{a.score?.toFixed(2) ?? '—'}</td>
+                  <td className="p-2">{a.vivacidade ? '✓' : '—'}</td>
                   <td className="p-2 text-slate-400">{a.motivo ?? ''}</td>
                 </tr>
               ))}

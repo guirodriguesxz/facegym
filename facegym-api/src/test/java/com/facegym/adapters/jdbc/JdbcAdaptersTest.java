@@ -87,6 +87,19 @@ class JdbcAdaptersTest {
         assertThat(acessos.recentes(2)).extracting(Acesso::motivo).containsExactly("Rosto não reconhecido", "x");
     }
 
+    @Test
+    void acessoGuardaVivacidadeInclusiveNula() {
+        Aluno a = Aluno.novo("Dora", Cpf.of("12345678143"), null);
+        alunos.salvar(a);
+        Instant t = Instant.parse("2026-10-06T11:00:00Z");
+        acessos.registrar(new Acesso(UUID.randomUUID(), t, a.id(), ResultadoAcesso.LIBERADO, null, MeioIdentificacao.FACIAL, 0.9, true));
+        acessos.registrar(new Acesso(UUID.randomUUID(), t.plusSeconds(1), a.id(), ResultadoAcesso.NEGADO, "x", MeioIdentificacao.FACIAL, 0.9, false));
+        acessos.registrar(new Acesso(UUID.randomUUID(), t.plusSeconds(2), a.id(), ResultadoAcesso.LIBERADO, null, MeioIdentificacao.CPF, null));
+
+        assertThat(acessos.recentes(500)).filteredOn(x -> a.id().equals(x.alunoId()))
+                .extracting(Acesso::vivacidade).containsExactly(null, false, true);
+    }
+
     @Autowired VisitantesJdbc visitantes;
 
     @Test

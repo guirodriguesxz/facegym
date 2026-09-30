@@ -20,7 +20,7 @@ public class AcessosJdbc implements RegistroDeAcessos {
             rs.getObject("id", UUID.class), rs.getTimestamp("data_hora").toInstant(),
             rs.getObject("aluno_id", UUID.class), ResultadoAcesso.valueOf(rs.getString("resultado")),
             rs.getString("motivo"), MeioIdentificacao.valueOf(rs.getString("meio")),
-            (Double) rs.getObject("score"));
+            (Double) rs.getObject("score"), (Boolean) rs.getObject("vivacidade"));
 
     private final JdbcClient jdbc;
 
@@ -28,9 +28,9 @@ public class AcessosJdbc implements RegistroDeAcessos {
 
     @Override
     public void registrar(Acesso a) {
-        jdbc.sql("INSERT INTO acesso (id, data_hora, aluno_id, resultado, motivo, meio, score) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        jdbc.sql("INSERT INTO acesso (id, data_hora, aluno_id, resultado, motivo, meio, score, vivacidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
                 .param(a.id()).param(Timestamp.from(a.dataHora())).param(a.alunoId()).param(a.resultado().name())
-                .param(a.motivo()).param(a.meio().name()).param(a.score())
+                .param(a.motivo()).param(a.meio().name()).param(a.score()).param(a.vivacidade())
                 .update();
     }
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { SEGUNDOS_DESAFIO, instrucao, type Desafio, type FotosComDesafio, type Lado } from './desafio'
+import { executarDesafio, instrucao, type Desafio, type FotosComDesafio, type Lado } from './desafio'
 
 export type ComDesafio = {
   pedir: () => Promise<Desafio>
@@ -24,6 +24,9 @@ export function Camera({ onFoto, comDesafio, rotulo, desabilitado, terminal }: {
   const video = useRef<HTMLVideoElement>(null)
   const [erro, setErro] = useState<string | null>(null)
   const [contagem, setContagem] = useState<{ lado: Lado; segundos: number } | null>(null)
+  const [emDesafio, setEmDesafio] = useState(false)
+  const montada = useRef(true)
+  useEffect(() => () => { montada.current = false }, [])
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -50,21 +53,19 @@ export function Camera({ onFoto, comDesafio, rotulo, desabilitado, terminal }: {
       if (foto) onFoto?.(foto)
       return
     }
+    setEmDesafio(true)
     try {
-      const desafio = await comDesafio.pedir()
-      const frente = await capturar()
-      if (!frente) return
-      comDesafio.onDesafio(desafio)
-      for (let s = SEGUNDOS_DESAFIO; s > 0; s--) {
-        setContagem({ lado: desafio.lado, segundos: s })
-        await esperar(1000)
-      }
-      const virada = await capturar()
-      setContagem(null)
-      if (virada) comDesafio.onFotos({ frente, virada, desafio })
+      const fotos = await executarDesafio({
+        pedir: comDesafio.pedir, capturar, esperar,
+        onDesafio: comDesafio.onDesafio,
+        onContagem: (c) => { if (montada.current) setContagem(c) },
+        cancelado: () => !montada.current,
+      })
+      if (fotos) comDesafio.onFotos(fotos)
     } catch (e) {
-      setContagem(null)
-      comDesafio.onErro(e)
+      if (montada.current) comDesafio.onErro(e)
+    } finally {
+      if (montada.current) setEmDesafio(false)
     }
   }
 
@@ -85,7 +86,7 @@ export function Camera({ onFoto, comDesafio, rotulo, desabilitado, terminal }: {
             <span className="text-4xl tabular-nums">{contagem.segundos}</span>
           </div>
         )}
-        <button onClick={clicar} disabled={desabilitado || !!contagem}
+        <button onClick={clicar} disabled={desabilitado || emDesafio}
           className="absolute inset-x-6 bottom-5 rounded-full bg-sinal-ok py-2.5 font-visor text-lg font-semibold text-tela focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:opacity-40">
           {rotulo}
         </button>
@@ -96,7 +97,7 @@ export function Camera({ onFoto, comDesafio, rotulo, desabilitado, terminal }: {
   return (
     <div className="flex flex-col items-start gap-3">
       <video ref={video} autoPlay playsInline muted className="aspect-square w-56 rounded-xl bg-grafite object-cover [transform:scaleX(-1)]" />
-      <button onClick={clicar} disabled={desabilitado || !!contagem}
+      <button onClick={clicar} disabled={desabilitado || emDesafio}
         className="rounded-lg bg-grafite px-4 py-2 font-medium text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-grafite disabled:opacity-50">{rotulo}</button>
     </div>
   )

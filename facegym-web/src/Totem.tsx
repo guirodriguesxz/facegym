@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ApiError, apiForm, apiJson, fotoDeUrl } from './api'
 import { Camera } from './Camera'
 import { Catraca, type EstadoCatraca } from './Catraca'
-import type { Desafio, FotosComDesafio } from './desafio'
+import { CapturaFalhou, type Desafio, type FotosComDesafio } from './desafio'
 import type { RespostaCheckIn } from './resultado'
 import { TesteComVoce, type Visitante } from './TesteComVoce'
 
@@ -65,7 +65,7 @@ export function Totem() {
     pedir: () => apiJson<Desafio>('/check-ins/desafios', { method: 'POST' }),
     onDesafio: (d: Desafio) => setEstado({ fase: 'desafio', lado: d.lado }),
     onFotos: checkInComDesafio,
-    onErro: (e: unknown) => setEstado({ fase: 'erro', mensagem: e instanceof ApiError ? e.message : 'Erro inesperado' }),
+    onErro: (e: unknown) => setEstado({ fase: 'erro', mensagem: e instanceof ApiError || e instanceof CapturaFalhou ? e.message : 'Erro inesperado' }),
   }
   const reprovado = estado.fase === 'resposta' && estado.resposta.status === 'PROVA_DE_VIDA_REPROVADA'
 

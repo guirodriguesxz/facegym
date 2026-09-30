@@ -123,3 +123,43 @@ def test_health_answers_while_inference_is_running(repo):
         assert r.status_code == 200
     finally:
         release.set(); t.join(5); server.should_exit = True
+
+from tests.conftest import ORANGE
+
+def pair(frente, virada):
+    return {"image": ("f.png", png(frente), "image/png"), "turned": ("v.png", png(virada), "image/png")}
+
+def test_liveness_mede_giro_e_similaridade(client, auth):
+    aluno = uuid4()
+    client.put(f"/faces/{aluno}", files=upload(RED), headers=auth)
+    r = client.post("/faces/identify-liveness", files=pair(RED, ORANGE), headers=auth)
+    assert r.status_code == 200
+    assert r.json() == {"alunoId": str(aluno), "score": 1.0, "giroFrente": 0.0, "giroVirada": 0.4, "similaridade": 1.0}
+
+def test_liveness_pessoas_diferentes_tem_similaridade_zero(client, auth):
+    r = client.post("/faces/identify-liveness", files=pair(RED, GREEN), headers=auth)
+    assert r.json()["similaridade"] == 0.0
+
+def test_liveness_sem_rosto_numa_das_fotos_devolve_tudo_nulo(client, auth):
+    client.put(f"/faces/{uuid4()}", files=upload(RED), headers=auth)
+    r = client.post("/faces/identify-liveness", files=pair(RED, BLUE), headers=auth)
+    assert r.json() == {"alunoId": None, "score": None, "giroFrente": None, "giroVirada": None, "similaridade": None}
+
+def test_liveness_sem_cadastro_mede_mas_nao_identifica(client, auth):
+    r = client.post("/faces/identify-liveness", files=pair(RED, ORANGE), headers=auth)
+    body = r.json()
+    assert body["alunoId"] is None and body["score"] is None and body["giroVirada"] == 0.4
+
+def test_liveness_exige_chave(client):
+    assert client.post("/faces/identify-liveness", files=pair(RED, ORANGE)).status_code == 401
+
+def test_liveness_aceita_duas_fotos_que_somam_mais_que_o_limite_de_uma(client, auth):
+    # duas imagens de ~4 MB: o corpo passa de 5,5 MB, mas cada uma respeita os 5 MB
+    grande = png(RED, size=(1200, 1200)) + b"\x00" * (4 * 1024 * 1024)
+    files = {"image": ("f.png", grande, "image/png"), "turned": ("v.png", grande, "image/png")}
+    assert client.post("/faces/identify-liveness", files=files, headers=auth).status_code == 200
+
+def test_liveness_recusa_uma_foto_acima_de_5mb(client, auth):
+    big = b"\x00" * (5 * 1024 * 1024 + 1)
+    files = {"image": ("f.png", big, "image/png"), "turned": ("v.png", png(ORANGE), "image/png")}
+    assert client.post("/faces/identify-liveness", files=files, headers=auth).status_code == 413

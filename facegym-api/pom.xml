@@ -14,6 +14,9 @@
     <properties>
         <java.version>21</java.version>
         <resilience4j.version>2.2.0</resilience4j.version>
+        <!-- acima do padrão do Boot 4.1.1: correções de segurança (alertas do Dependabot) -->
+        <tomcat.version>11.0.26</tomcat.version>
+        <jackson-bom.version>3.1.7</jackson-bom.version>
     </properties>
     <dependencies>
         <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-webmvc</artifactId></dependency>
@@ -48,6 +51,12 @@
                 <version>1.21.4</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <!-- o Testcontainers 1.21 traz a 1.24, com falhas de DoS; só entra nos testes -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.28.0</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

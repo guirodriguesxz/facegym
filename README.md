@@ -1,5 +1,9 @@
 # FaceGym
 
+[![api](https://github.com/guirodriguesxz/facegym/actions/workflows/api.yml/badge.svg)](https://github.com/guirodriguesxz/facegym/actions/workflows/api.yml)
+[![biometria](https://github.com/guirodriguesxz/facegym/actions/workflows/biometria.yml/badge.svg)](https://github.com/guirodriguesxz/facegym/actions/workflows/biometria.yml)
+[![web](https://github.com/guirodriguesxz/facegym/actions/workflows/web.yml/badge.svg)](https://github.com/guirodriguesxz/facegym/actions/workflows/web.yml)
+
 Check-in de academia por reconhecimento facial. Projeto de portfólio com foco em **arquitetura
 hexagonal** e **integração resiliente** entre serviços.
 

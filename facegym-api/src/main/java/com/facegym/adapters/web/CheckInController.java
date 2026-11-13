@@ -54,7 +54,9 @@ public class CheckInController {
 
     @PostMapping("/check-ins/cpf")
     public Resposta porCpf(@Valid @RequestBody CpfRequest req) {
-        return Resposta.de(checkIn.porCpf(req.cpf()));
+        // Sem o rosto como prova, o nome não pode voltar: senão o CPF vira consulta de nomes.
+        var r = Resposta.de(checkIn.porCpf(req.cpf()));
+        return new Resposta(r.status(), null, r.motivo(), r.token(), r.vivacidade());
     }
 
     @PostMapping("/check-ins/{token}/cpf")

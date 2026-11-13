@@ -42,6 +42,7 @@ class FluxoCompletoIT {
     @DynamicPropertySource
     static void props(DynamicPropertyRegistry r) {
         r.add("facegym.biometria.url", bio::baseUrl);
+        r.add("facegym.biometria.chave", () -> "chave-de-teste-0123456789");
         r.add("facegym.admin.senha", () -> "admin12345");
         r.add("facegym.vivacidade.modo", () -> "opcional");
     }
@@ -197,7 +198,8 @@ class FluxoCompletoIT {
 
     @Test
     void metricasDoPrometheusIncluemOCircuitBreakerDaBiometria() throws Exception {
-        mvc.perform(get("/actuator/prometheus"))
+        mvc.perform(get("/actuator/prometheus")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/actuator/prometheus").header("Authorization", token()))
                 .andExpect(status().isOk())
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("resilience4j_circuitbreaker_state")));
     }

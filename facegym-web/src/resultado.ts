@@ -13,10 +13,10 @@ export function descrever(r: RespostaCheckIn, demo = false): Descricao {
   switch (r.status) {
     case 'LIBERADO': {
       const selo = r.vivacidade ? '✓ Prova de vida' : demo ? 'Sem prova de vida (demo)' : undefined
-      return { titulo: `Bem-vinda(o), ${r.nome}!`, tom: 'ok', pedeCpf: false, ...(selo && { selo }) }
+      return { titulo: r.nome ? `Bem-vinda(o), ${r.nome}!` : 'Bem-vinda(o)!', tom: 'ok', pedeCpf: false, ...(selo && { selo }) }
     }
     case 'NEGADO':
-      return { titulo: `Acesso negado, ${r.nome}`, detalhe: r.motivo, tom: 'erro', pedeCpf: false }
+      return { titulo: r.nome ? `Acesso negado, ${r.nome}` : 'Acesso negado', detalhe: r.motivo, tom: 'erro', pedeCpf: false }
     case 'CONFIRMAR_CPF':
       return { titulo: 'Quase lá', detalhe: 'Confirme seu CPF para entrar.', tom: 'aviso', pedeCpf: true }
     case 'NAO_RECONHECIDO':

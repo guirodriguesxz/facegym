@@ -26,7 +26,10 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http, @Value("${facegym.cors}") String cors) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, @Value("${facegym.cors}") String cors,
+                                    @Value("${facegym.limite.login}") int limiteLogin,
+                                    @Value("${facegym.limite.cpf}") int limiteCpf,
+                                    @Value("${facegym.limite.geral}") int limiteGeral) throws Exception {
         var corsConfig = new CorsConfiguration();
         corsConfig.setAllowedOrigins(List.of(cors.split(",")));
         corsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
@@ -35,6 +38,8 @@ public class SecurityConfig {
         source.registerCorsConfiguration("/**", corsConfig);
 
         return http
+                .addFilterBefore(new LimiteDeRequisicoes(limiteLogin, limiteCpf, limiteGeral),
+                        org.springframework.security.web.header.HeaderWriterFilter.class)
                 .csrf(c -> c.disable())
                 .cors(c -> c.configurationSource(source))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -42,7 +47,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/check-ins/**", "/api/v1/demo/identificar",
                                 "/api/v1/demo/visitantes", "/api/v1/demo/aquecer", "/api/v1/auth/login").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/demo/visitantes/*").permitAll()
-                        .requestMatchers("/actuator/health", "/actuator/prometheus", "/error").permitAll()
+                        .requestMatchers("/actuator/health", "/error").permitAll()
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(o -> o.jwt(j -> {}))
                 .build();

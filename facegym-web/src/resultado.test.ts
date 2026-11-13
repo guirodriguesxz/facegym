@@ -5,6 +5,10 @@ describe('descrever', () => {
   it('liberado mostra boas-vindas', () => {
     expect(descrever({ status: 'LIBERADO', nome: 'Ana' })).toEqual({ titulo: 'Bem-vinda(o), Ana!', tom: 'ok', pedeCpf: false })
   })
+  it('sem nome (check-in só por CPF) não inventa nome', () => {
+    expect(descrever({ status: 'LIBERADO' }).titulo).toBe('Bem-vinda(o)!')
+    expect(descrever({ status: 'NEGADO', motivo: 'Plano vencido ou inexistente' }).titulo).toBe('Acesso negado')
+  })
   it('negado mostra o motivo', () => {
     expect(descrever({ status: 'NEGADO', nome: 'Bruno', motivo: 'Plano vencido ou inexistente' }))
       .toEqual({ titulo: 'Acesso negado, Bruno', detalhe: 'Plano vencido ou inexistente', tom: 'erro', pedeCpf: false })

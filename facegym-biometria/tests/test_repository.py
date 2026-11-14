@@ -15,7 +15,8 @@ def repo(database_url):
     r = PgFaceRepository(database_url)
     r.init_schema()
     r.clear()
-    return r
+    yield r
+    r.close()
 
 def test_nearest_on_empty_table_returns_none(repo):
     assert repo.nearest(vec(0)) is None
@@ -43,3 +44,13 @@ def test_delete_is_idempotent(repo):
     repo.delete(a)
     repo.delete(a)
     assert repo.nearest(vec(0)) is None
+
+def test_concurrent_calls_share_the_pool(repo):
+    from concurrent.futures import ThreadPoolExecutor
+    ids = [uuid4() for _ in range(8)]
+    with ThreadPoolExecutor(8) as ex:
+        list(ex.map(lambda i: repo.upsert(ids[i], vec(i)), range(8)))
+    assert repo.count() == 8
+    with ThreadPoolExecutor(8) as ex:
+        found = list(ex.map(lambda i: repo.nearest(vec(i))[0], range(8)))
+    assert found == ids
